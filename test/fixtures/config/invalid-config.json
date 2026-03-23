@@ -1,0 +1,4 @@
+{
+  "sniffers": {
+    "prop-explosion": { "threshold": "not-a-number"
+  }

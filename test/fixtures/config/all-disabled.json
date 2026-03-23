@@ -1,0 +1,7 @@
+{
+  "sniffers": {
+    "prop-explosion": { "enabled": false },
+    "god-hook": { "enabled": false },
+    "prop-drilling": { "enabled": false }
+  }
+}

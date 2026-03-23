@@ -1,0 +1,7 @@
+{
+  "sniffers": {
+    "prop-explosion": { "enabled": true, "threshold": 3, "severity": "error" },
+    "god-hook": { "enabled": true, "maxUseState": 2, "maxUseEffect": 1, "maxTotalHooks": 5, "severity": "error" },
+    "prop-drilling": { "enabled": true, "severity": "error" }
+  }
+}
