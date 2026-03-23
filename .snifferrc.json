@@ -1,0 +1,29 @@
+{
+  "include": ["**/*.{jsx,tsx}"],
+  "exclude": ["node_modules", "dist", "build", "**/*.test.*", "**/*.spec.*"],
+  "parallel": true,
+  "maxWorkers": 4,
+  "timeoutMs": 30000,
+  "outputFormat": "markdown",
+  "outputPath": null,
+  "sniffers": {
+    "prop-explosion": {
+      "enabled": true,
+      "threshold": 7,
+      "severity": "warning"
+    },
+    "god-hook": {
+      "enabled": true,
+      "maxUseState": 4,
+      "maxUseEffect": 3,
+      "maxTotalHooks": 10,
+      "severity": "warning"
+    },
+    "prop-drilling": {
+      "enabled": true,
+      "severity": "warning",
+      "whitelistedProps": ["className", "style", "children", "key", "ref", "id", "data-testid"]
+    }
+  },
+  "plugins": []
+}
