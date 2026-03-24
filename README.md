@@ -1,17 +1,19 @@
-# react-anti-pattern-sniffer
+# anti-pattern-sniffer
 
-Zero-dependency CLI tool that detects React anti-patterns in your codebase using regex-based heuristics and parallel worker threads.
+Zero-dependency CLI tool that detects anti-patterns across **React**, **Express**, and **NestJS** codebases using regex-based heuristics and parallel worker threads.
 
 ## Features
 
 - **Zero runtime dependencies** — uses only Node.js built-ins
-- **Three built-in sniffers**: prop explosion, god hook, prop drilling
+- **14 built-in sniffers** across 3 frameworks (React, Express, NestJS)
+- **Setup wizard** — `ras init` to pick frameworks and sniffers
 - **Interactive TUI** — browse results, copy as AI prompt, ignore components
+- **Framework filter** — focus on one framework at a time in the TUI
 - **Batch mode** — focus on the first N issues at a time
 - **Parallel execution** via `worker_threads` for fast analysis
 - **Plugin system** — register custom sniffers with security validation
 - **Markdown & JSON output** — human-readable reports or structured data
-- **`.snifferignore`** — persistently ignore specific components
+- **`.snifferignore`** — persistently ignore specific files or components
 - **Git hook friendly** — exit codes for CI/CD and husky integration
 
 ## Installation
@@ -23,11 +25,11 @@ npm install --save-dev react-anti-pattern-sniffer
 ## Quick Start
 
 ```bash
-# Scan current directory
-npx react-sniff
+# Interactive setup — pick your frameworks and sniffers
+ras init
 
-# Short alias
-npx ras
+# Scan current directory
+ras
 
 # Interactive mode — browse results in a TUI
 ras -i
@@ -39,13 +41,19 @@ ras -b 10
 ras -i -b 20
 
 # Output JSON report
-react-sniff --format json --output report.json
+ras --format json --output report.json
+
+# Run only Express sniffers
+ras -s express/god-routes,express/fat-controllers
 ```
 
 ## CLI Options
 
 ```
-Usage: react-sniff [options] [dir]
+Usage: ras [options] [dir]
+
+Commands:
+  ras init                 Interactive setup wizard
 
 Options:
   -d, --dir <path>         Target directory (default: cwd)
@@ -66,21 +74,20 @@ Options:
 
 ## Interactive Mode
 
-Launch with `ras -i` to get a keyboard-driven TUI for browsing results, organized by code smell:
+Launch with `ras -i` to get a keyboard-driven TUI for browsing results:
 
 ```
-  React Anti-Pattern Sniffer  │  12/42 issues shown  •  85 files scanned
+  Anti-Pattern Sniffer  │  12/42 issues shown  •  85 files scanned
 
-  ▸ ▼ Prop Explosion (6 issues)
+  ▸ ▼ React > Prop Explosion (6 issues)
       ● src/components/UserProfile.tsx:15 UserProfile — has 10 props
       ● src/components/Dashboard.tsx:42 Dashboard — has 8 props
-      ● src/pages/Settings.tsx:23 SettingsForm — has 9 props
 
-    ▶ God Hook (3 issues)
+    ▶ Express > God Routes (3 issues)
 
-    ▶ Prop Drilling (3 issues)
+    ▶ NestJS > God Service (3 issues)
 
-  [c]opy as prompt  [a]ll as md  [x] ignore  [f]ilter  [d]etails  [q]uit
+  [c]opy as prompt  [a]ll as md  [x] ignore  [f]ilter  [F]ramework  [d]etails  [q]uit
   ↑/↓ navigate  ←/→ or enter collapse/expand  tab next group
 ```
 
@@ -92,72 +99,112 @@ Launch with `ras -i` to get a keyboard-driven TUI for browsing results, organize
 | `Enter`/`→`/`←` | Expand/collapse smell groups |
 | `Tab` | Jump to next group |
 | `d` | Toggle details (show suggestion + metadata) |
-| `c` | Copy current issue as AI prompt (markdown to clipboard) |
+| `c` | Copy current issue as AI prompt (markdown) |
 | `a` | Copy all visible issues as markdown |
 | `x` | Ignore component (adds to `.snifferignore`) |
 | `f` | Cycle filter by smell type |
+| `F` | Cycle filter by framework (React/Express/NestJS) |
 | `p` | Print current issue markdown (clipboard fallback) |
 | `q` | Quit |
 
-## Batch Mode
-
-Use `-b` to limit output to the first N issues. Works in both interactive and non-interactive mode:
-
-```bash
-# Show first 5 issues as markdown
-ras -b 5
-
-# Browse first 20 issues in TUI
-ras -i -b 20
-
-# Only god-hook issues, first 3
-ras -b 3 -s god-hook
-```
-
 ## Sniffers
 
-### Prop Explosion
+### React (3 sniffers)
 
-Detects components with too many props, suggesting decomposition.
+| Sniffer | What it detects | Default threshold |
+|---------|----------------|-------------------|
+| `react/prop-explosion` | Components with too many props | 7 props |
+| `react/god-hook` | Custom hooks with excessive state/effects | 4 useState, 3 useEffect |
+| `react/prop-drilling` | Props forwarded without local use | any forwarded prop |
 
-```jsx
-// ⚠ Flagged: 10 props exceeds threshold of 7
-const UserProfile = ({ firstName, lastName, email, phone, avatar, address, role, permissions, isActive, onUpdate }) => { ... }
+### Express (6 sniffers)
+
+| Sniffer | What it detects | Default threshold |
+|---------|----------------|-------------------|
+| `express/god-routes` | Route files with too many handlers | 10 routes |
+| `express/missing-error-handling` | Async handlers without try-catch or error middleware | any unhandled async |
+| `express/fat-controllers` | Route handlers with too much logic | 50 lines or 3+ awaits |
+| `express/no-input-validation` | `req.body`/`req.params` used without validation | any unvalidated access |
+| `express/callback-hell` | Deeply nested callbacks | 3 levels deep |
+| `express/hardcoded-secrets` | Passwords, API keys, connection strings in code | any match |
+
+### NestJS (5 sniffers)
+
+| Sniffer | What it detects | Default threshold |
+|---------|----------------|-------------------|
+| `nestjs/god-service` | Services with too many dependencies/methods | 8 deps or 15 methods |
+| `nestjs/missing-dtos` | `@Body()` params typed as `any` or missing DTOs | any untyped param |
+| `nestjs/business-logic-in-controllers` | Controllers with inline business logic | 50 lines or logic keywords |
+| `nestjs/missing-guards` | Sensitive routes without `@UseGuards` | admin/auth routes |
+| `nestjs/magic-strings` | Repeated string literals in conditionals | 3+ occurrences |
+
+## Setup Wizard
+
+Run `ras init` to interactively configure your project:
+
+```
+$ ras init
+
+  Anti-Pattern Sniffer — Setup
+
+  Which frameworks does your project use?
+  ▸ [x] React
+    [x] Express
+    [ ] NestJS
+
+  Which React sniffers do you want to enable?
+  ▸ [x] prop-explosion
+    [x] god-hook
+    [x] prop-drilling
+
+  ✔ Created .snifferrc.json
 ```
 
-**Fix:** Group related props into objects, use Context, or split the component.
+This generates a `.snifferrc.json` with the right `include` patterns and enabled sniffers for your stack.
 
-### God Hook
+## Configuration
 
-Detects custom hooks with excessive state, effects, or responsibilities.
+Create `.snifferrc.json` in your project root (or use `ras init`):
 
-```jsx
-// ⚠ Flagged: 6 useState, 4 useEffect
-function useUserDashboard(userId) {
-  const [user, setUser] = useState(null);
-  const [posts, setPosts] = useState([]);
-  // ...6 more useState, 4 useEffect
+```json
+{
+  "frameworks": ["react", "express"],
+  "include": ["**/*.{jsx,tsx,js,ts}"],
+  "exclude": ["node_modules", "dist", "build", "**/*.test.*"],
+  "parallel": true,
+  "maxWorkers": 4,
+  "timeoutMs": 30000,
+  "outputFormat": "markdown",
+  "sniffers": {
+    "react/prop-explosion": {
+      "enabled": true,
+      "threshold": 7,
+      "severity": "warning"
+    },
+    "react/god-hook": {
+      "enabled": true,
+      "maxUseState": 4,
+      "maxUseEffect": 3,
+      "maxTotalHooks": 10,
+      "severity": "warning"
+    },
+    "express/god-routes": {
+      "enabled": true,
+      "maxRoutes": 10,
+      "severity": "warning"
+    },
+    "express/hardcoded-secrets": {
+      "enabled": true,
+      "severity": "error"
+    }
+  },
+  "plugins": []
 }
 ```
 
-**Fix:** Split into focused sub-hooks (`useUser`, `usePosts`, `useNotifications`).
-
-### Prop Drilling
-
-Detects props that are received but only forwarded to children without local use.
-
-```jsx
-// ⚠ Flagged: theme, locale passed through without use
-const Wrapper = ({ theme, locale, children }) => (
-  <Header theme={theme} locale={locale} />
-);
-```
-
-**Fix:** Use React Context or component composition.
-
 ## `.snifferignore`
 
-Create a `.snifferignore` file in your project root to persistently skip specific components or files. This file is automatically updated when you press `x` in interactive mode.
+Create a `.snifferignore` file to persistently skip specific files or components. Updated automatically when you press `x` in interactive mode.
 
 ```gitignore
 # Ignore a specific component for a specific sniffer
@@ -170,52 +217,12 @@ src/legacy/OldDashboard.tsx
 src/hooks/useMonolith.ts:useMonolith  # god-hook
 ```
 
-Format: `<file-path>:<ComponentName>  # <sniffer-name>`
-
-- `ComponentName` and `# sniffer-name` are optional
-- Lines starting with `#` are comments
-
-## Configuration
-
-Create `.snifferrc.json` in your project root:
-
-```json
-{
-  "include": ["**/*.{jsx,tsx}"],
-  "exclude": ["node_modules", "dist", "build", "**/*.test.*"],
-  "parallel": true,
-  "maxWorkers": 4,
-  "timeoutMs": 30000,
-  "outputFormat": "markdown",
-  "sniffers": {
-    "prop-explosion": {
-      "enabled": true,
-      "threshold": 7,
-      "severity": "warning"
-    },
-    "god-hook": {
-      "enabled": true,
-      "maxUseState": 4,
-      "maxUseEffect": 3,
-      "maxTotalHooks": 10,
-      "severity": "warning"
-    },
-    "prop-drilling": {
-      "enabled": true,
-      "severity": "warning",
-      "whitelistedProps": ["className", "style", "children", "key", "ref", "id"]
-    }
-  },
-  "plugins": []
-}
-```
-
 ## Git Hooks (Husky)
 
 Add to `.husky/pre-commit`:
 
 ```bash
-npx react-sniff --quiet
+npx ras --quiet
 ```
 
 Exit codes:
@@ -241,7 +248,6 @@ module.exports = {
   },
   detect(fileContent, filePath, config) {
     const detections = [];
-    // Your detection logic here
     // Return array of Detection objects:
     // { snifferName, filePath, line, column, message, severity, suggestion }
     return detections;
