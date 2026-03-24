@@ -1,9 +1,11 @@
-import { join } from 'node:path';
 import { loadPlugin } from '../plugins/plugin-loader.js';
-import type { SnifferEntry, PluginEntry, SnifferExport } from '../sniffers/sniffer-interface.js';
+import type { SnifferEntry, PluginEntry, FrameworkDefinition } from '../sniffers/sniffer-interface.js';
 import { warn } from '../utils/logger.js';
+import { REACT_FRAMEWORK } from '../sniffers/react/index.js';
+import { EXPRESS_FRAMEWORK } from '../sniffers/express/index.js';
+import { NESTJS_FRAMEWORK } from '../sniffers/nestjs/index.js';
 
-const SNIFFERS_DIR = join(__dirname, '..', 'sniffers');
+const BUILT_IN_FRAMEWORKS: FrameworkDefinition[] = [REACT_FRAMEWORK, EXPRESS_FRAMEWORK, NESTJS_FRAMEWORK];
 
 interface RegistryEntry {
   snifferPath: string;
@@ -12,22 +14,43 @@ interface RegistryEntry {
 
 export class SnifferRegistry {
   private sniffers = new Map<string, RegistryEntry>();
+  private frameworks = new Map<string, FrameworkDefinition>();
 
-  registerBuiltIn(): void {
-    this.sniffers.set('prop-explosion', {
-      snifferPath: join(SNIFFERS_DIR, 'prop-explosion-sniffer.js'),
-      config: {},
-    });
+  /**
+   * Register a framework and all its sniffers.
+   * Sniffers are stored with both namespaced (framework/name) and un-namespaced (name) keys
+   * for backward compatibility.
+   */
+  registerFramework(framework: FrameworkDefinition): void {
+    this.frameworks.set(framework.name, framework);
 
-    this.sniffers.set('god-hook', {
-      snifferPath: join(SNIFFERS_DIR, 'god-hook-sniffer.js'),
-      config: {},
-    });
+    for (const sniffer of framework.sniffers) {
+      const namespacedName = `${framework.name}/${sniffer.name}`;
+      this.sniffers.set(namespacedName, {
+        snifferPath: sniffer.path,
+        config: sniffer.defaultConfig ?? {},
+      });
 
-    this.sniffers.set('prop-drilling', {
-      snifferPath: join(SNIFFERS_DIR, 'prop-drilling-sniffer.js'),
-      config: {},
-    });
+      // Also register without namespace for backward compat
+      if (!this.sniffers.has(sniffer.name)) {
+        this.sniffers.set(sniffer.name, {
+          snifferPath: sniffer.path,
+          config: sniffer.defaultConfig ?? {},
+        });
+      }
+    }
+  }
+
+  /**
+   * Register built-in frameworks. If enabledFrameworks is specified,
+   * only register those. Otherwise register all.
+   */
+  registerBuiltIn(enabledFrameworks?: string[]): void {
+    for (const fw of BUILT_IN_FRAMEWORKS) {
+      if (!enabledFrameworks || enabledFrameworks.includes(fw.name)) {
+        this.registerFramework(fw);
+      }
+    }
   }
 
   registerPlugin(pluginEntry: PluginEntry, basePath: string): void {
@@ -49,27 +72,43 @@ export class SnifferRegistry {
     }
   }
 
+  getAvailableFrameworks(): FrameworkDefinition[] {
+    return [...this.frameworks.values()];
+  }
+
   getEnabledSniffers(
     snifferConfig: Record<string, Record<string, unknown>>,
   ): SnifferEntry[] {
     const enabled: SnifferEntry[] = [];
+    const seen = new Set<string>(); // avoid duplicates from namespaced + un-namespaced
 
     for (const [name, entry] of this.sniffers) {
-      const userConfig = snifferConfig[name];
+      // Skip un-namespaced duplicates if the namespaced version is also registered
+      if (!name.includes('/') && this.sniffers.has(`react/${name}`)) {
+        // Only process the un-namespaced version if config references it by short name
+        if (!snifferConfig[name]) continue;
+      }
 
-      // If the sniffer is explicitly disabled, skip it
+      // Check config — try both namespaced and un-namespaced keys
+      const userConfig = snifferConfig[name]
+        ?? (name.includes('/') ? snifferConfig[name.split('/')[1]] : undefined);
+
       if (userConfig && userConfig.enabled === false) {
         continue;
       }
 
-      // Merge user config over defaults (excluding the 'enabled' flag)
+      // Use the short name (without framework prefix) for dedup
+      const shortName = name.includes('/') ? name.split('/')[1] : name;
+      if (seen.has(shortName)) continue;
+      seen.add(shortName);
+
       const mergedConfig: Record<string, unknown> = {
         ...entry.config,
         ...(userConfig ?? {}),
       };
 
       enabled.push({
-        name,
+        name: name.includes('/') ? name : name,
         snifferPath: entry.snifferPath,
         config: mergedConfig,
       });

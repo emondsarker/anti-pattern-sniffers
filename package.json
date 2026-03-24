@@ -1,28 +1,32 @@
 {
-  "name": "react-anti-pattern-sniffer",
-  "version": "0.1.0",
-  "description": "Zero-dependency CLI that detects React anti-patterns via regex-based heuristics",
+  "name": "anti-pattern-sniffer",
+  "version": "0.2.0",
+  "description": "Zero-dependency CLI that detects framework anti-patterns via regex-based heuristics",
   "main": "dist/src/core/orchestrator.js",
   "types": "dist/src/core/orchestrator.d.ts",
   "bin": {
-    "react-sniff": "bin/react-sniff.js",
-    "ras": "bin/react-sniff.js"
+    "sniff": "bin/sniff.js",
+    "aps": "bin/sniff.js",
+    "ras": "bin/sniff.js",
+    "react-sniff": "bin/sniff.js"
   },
   "scripts": {
     "build": "tsc",
     "test": "tsc && node --test 'dist/test/unit/**/*.test.js' 'dist/test/integration/**/*.test.js'",
     "test:unit": "tsc && node --test 'dist/test/unit/**/*.test.js'",
     "test:integration": "tsc && node --test 'dist/test/integration/**/*.test.js'",
-    "sniff": "tsc && node bin/react-sniff.js"
+    "sniff": "tsc && node bin/sniff.js"
   },
   "keywords": [
-    "react",
     "anti-pattern",
     "linter",
     "code-quality",
     "cli",
     "code-smell",
-    "static-analysis"
+    "static-analysis",
+    "react",
+    "express",
+    "nestjs"
   ],
   "engines": {
     "node": ">=20.0.0"

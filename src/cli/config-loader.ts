@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path';
 import type { SnifferConfig } from '../sniffers/sniffer-interface.js';
 
 const DEFAULT_CONFIG: SnifferConfig = {
+  frameworks: ['react'],
   include: ['**/*.{jsx,tsx}'],
   exclude: ['node_modules', 'dist', 'build', '**/*.test.*', '**/*.spec.*'],
   parallel: true,

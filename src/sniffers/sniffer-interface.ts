@@ -1,5 +1,6 @@
 export type Severity = 'info' | 'warning' | 'error';
-export type SnifferCategory = 'props' | 'hooks' | 'architecture' | 'custom';
+export type SnifferCategory = 'props' | 'hooks' | 'architecture' | 'routing' | 'validation' | 'security' | 'dependency-injection' | 'custom';
+export type FrameworkName = 'react' | 'express' | 'nestjs' | 'generic';
 
 export interface Detection {
   snifferName: string;
@@ -15,9 +16,17 @@ export interface Detection {
 export interface SnifferMeta {
   name: string;
   description: string;
+  framework?: FrameworkName;
   category: SnifferCategory;
   severity: Severity;
   defaultConfig: Record<string, unknown>;
+}
+
+export interface FrameworkDefinition {
+  name: string;
+  label: string;
+  defaultInclude: string[];
+  sniffers: Array<{ name: string; path: string; defaultConfig?: Record<string, unknown> }>;
 }
 
 export interface SnifferExport {
@@ -36,6 +45,7 @@ export interface SnifferResult {
 }
 
 export interface SnifferConfig {
+  frameworks?: string[];
   include: string[];
   exclude: string[];
   parallel: boolean;

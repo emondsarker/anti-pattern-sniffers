@@ -23,7 +23,7 @@ export async function orchestrate(config: SnifferConfig, targetDir: string): Pro
   const startTime = Date.now();
 
   // 1. Discover target files
-  step(`Scanning ${relative(process.cwd(), targetDir) || '.'} for React files...`);
+  step(`Scanning ${relative(process.cwd(), targetDir) || '.'} for source files...`);
   const files = discoverFiles(config.include, config.exclude, targetDir);
 
   if (files.length === 0) {

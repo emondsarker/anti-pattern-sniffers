@@ -3,9 +3,13 @@ import { join } from 'node:path';
 
 export function printHelp(): void {
   const help = `
-Usage: react-sniff [options] [dir]
+Usage: aps [options] [dir]
+       sniff [options] [dir]
 
-Detect React anti-patterns in your codebase.
+Detect anti-patterns in your codebase (React, Express, NestJS).
+
+Commands:
+  init                         Run setup wizard to configure frameworks
 
 Options:
   -d, --dir <path>         Target directory to scan (default: cwd)
@@ -15,31 +19,30 @@ Options:
   -o, --output <path>      Write report to file instead of stdout
   -w, --workers <n>        Number of worker threads (default: 4)
   -i, --interactive        Launch interactive TUI to browse results
-  -b, --batch <n>          Show first N issues in interactive mode (default: 10)
+  -b, --batch <n>          Limit output to first N issues (default: 10)
       --parallel           Enable parallel execution (default: true)
-      --no-parallel         Disable parallel execution
+      --no-parallel        Disable parallel execution
       --verbose            Show debug output
   -q, --quiet              Suppress all output (exit code only)
   -h, --help               Show this help message
   -v, --version            Show version number
 
 Examples:
-  react-sniff                              Scan current directory
-  react-sniff src/                         Scan specific directory
-  ras -i                                   Interactive mode
-  ras -i -b 20                             Interactive, show first 20 issues
-  react-sniff --sniffers prop-explosion    Run only prop explosion sniffer
-  react-sniff --format json -o report.json Output JSON report to file
-  ras --no-parallel --verbose              Run sequentially with debug output
+  aps                                    Scan current directory
+  aps src/                               Scan specific directory
+  aps -i                                 Interactive mode
+  aps -i -b 20                           Interactive, show first 20 issues
+  aps --sniffers prop-explosion          Run only prop explosion sniffer
+  aps --format json -o report.json       Output JSON report to file
+  aps init                               Setup wizard
 
-Sniffers:
-  prop-explosion   Detects components with too many props
-  god-hook         Detects custom hooks that do too much
-  prop-drilling    Detects props passed through without being used
+Frameworks:
+  react      Prop explosion, god hook, prop drilling
+  express    God routes, missing error handling, fat controllers, and more
+  nestjs     God service, missing DTOs, business logic in controllers, and more
 
 Configuration:
-  Create a .snifferrc.json in your project root to customize thresholds.
-  See https://github.com/your-repo/react-anti-pattern-sniffer for details.
+  Create a .snifferrc.json in your project root or run 'aps init'.
 `.trim();
 
   console.log(help);
@@ -49,8 +52,8 @@ export function printVersion(): void {
   try {
     const pkgPath = join(__dirname, '..', '..', '..', 'package.json');
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
-    console.log(`react-anti-pattern-sniffer v${pkg.version}`);
+    console.log(`anti-pattern-sniffer v${pkg.version}`);
   } catch {
-    console.log('react-anti-pattern-sniffer (unknown version)');
+    console.log('anti-pattern-sniffer (unknown version)');
   }
 }
