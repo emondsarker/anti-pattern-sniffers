@@ -108,3 +108,35 @@ export const REQUIRED_META_SCHEMA = {
   severity: 'string',
   defaultConfig: 'object',
 } as const;
+
+// ---------------------------------------------------------------------------
+// Workspace / monorepo types
+// ---------------------------------------------------------------------------
+
+export interface WorkspacePackage {
+  name: string;
+  path: string;
+  relativePath: string;
+}
+
+export type WorkspaceType = 'npm' | 'pnpm' | 'yarn' | 'nx' | 'turborepo' | 'lerna' | 'manual' | 'single';
+
+export interface WorkspaceInfo {
+  isMonorepo: boolean;
+  rootDir: string;
+  packages: WorkspacePackage[];
+  type: WorkspaceType;
+}
+
+export interface PackageResult {
+  package: WorkspacePackage;
+  result: import('../core/orchestrator.js').OrchestrateResult;
+  frameworks: string[];
+}
+
+export interface WorkspaceResult {
+  packages: PackageResult[];
+  totalIssueCount: number;
+  totalFileCount: number;
+  output: string;
+}
