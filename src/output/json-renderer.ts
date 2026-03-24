@@ -1,4 +1,4 @@
-import type { SnifferResult, Detection } from '../sniffers/sniffer-interface.js';
+import type { SnifferResult, Detection, PackageResult } from '../sniffers/sniffer-interface.js';
 
 interface JsonReport {
   meta: {
@@ -62,6 +62,57 @@ export function renderJson(
     files,
     summary,
     errors,
+  };
+
+  return JSON.stringify(report, null, 2);
+}
+
+export function renderJsonWorkspace(
+  packageResults: PackageResult[],
+  _config: Record<string, unknown>,
+): string {
+  let totalFiles = 0;
+  let totalIssues = 0;
+
+  for (const pr of packageResults) {
+    totalFiles += pr.result.fileCount;
+    totalIssues += pr.result.issueCount;
+  }
+
+  const packages: Record<string, unknown> = {};
+
+  for (const pr of packageResults) {
+    const files: Record<string, Detection[]> = {};
+
+    for (const [, snifferResults] of pr.result.grouped) {
+      for (const result of snifferResults) {
+        for (const detection of result.detections) {
+          if (!files[detection.filePath]) {
+            files[detection.filePath] = [];
+          }
+          files[detection.filePath].push(detection);
+        }
+      }
+    }
+
+    packages[pr.package.name] = {
+      path: pr.package.relativePath,
+      frameworks: pr.frameworks,
+      fileCount: pr.result.fileCount,
+      issueCount: pr.result.issueCount,
+      files,
+    };
+  }
+
+  const report = {
+    meta: {
+      isWorkspace: true,
+      packageCount: packageResults.length,
+      totalFiles,
+      totalIssues,
+      date: new Date().toISOString().split('T')[0],
+    },
+    packages,
   };
 
   return JSON.stringify(report, null, 2);

@@ -1,4 +1,4 @@
-import type { SnifferResult, Detection } from '../sniffers/sniffer-interface.js';
+import type { SnifferResult, Detection, PackageResult } from '../sniffers/sniffer-interface.js';
 
 export function renderMarkdown(
   results: Map<string, SnifferResult[]>,
@@ -77,7 +77,7 @@ export function renderMarkdown(
   return lines.join('\n');
 }
 
-function formatSnifferName(name: string): string {
+export function formatSnifferName(name: string): string {
   // Handle namespaced names: "express/god-routes" → "Express > God Routes"
   if (name.includes('/')) {
     const [framework, sniffer] = name.split('/');
@@ -89,4 +89,94 @@ function formatSnifferName(name: string): string {
     .split('-')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
+}
+
+export function renderMarkdownWorkspace(
+  packageResults: PackageResult[],
+  _config: Record<string, unknown>,
+): string {
+  const lines: string[] = [];
+  const date = new Date().toISOString().split('T')[0];
+
+  // Compute totals
+  let totalIssues = 0;
+  let totalFiles = 0;
+  for (const pr of packageResults) {
+    totalIssues += pr.result.issueCount;
+    totalFiles += pr.result.fileCount;
+  }
+
+  lines.push('# Anti-Pattern Report (Workspace)');
+  lines.push('');
+  lines.push(`**Packages scanned**: ${packageResults.length} | **Total issues**: ${totalIssues} | **Date**: ${date}`);
+
+  if (totalIssues === 0) {
+    lines.push('');
+    lines.push('✅ No anti-patterns detected!');
+    return lines.join('\n');
+  }
+
+  lines.push('');
+  lines.push('---');
+
+  // Per-package sections
+  for (const pr of packageResults) {
+    const fwList = pr.frameworks.length > 0 ? pr.frameworks.join(', ') : 'generic';
+    lines.push('');
+    lines.push(`## Package: ${pr.package.name} (\`${pr.package.relativePath}\`) — ${fwList}`);
+    lines.push(`**Files**: ${pr.result.fileCount} | **Issues**: ${pr.result.issueCount}`);
+
+    if (pr.result.issueCount === 0) {
+      lines.push('');
+      lines.push('✅ No issues in this package.');
+      lines.push('');
+      lines.push('---');
+      continue;
+    }
+
+    // Collect detections grouped by file for this package
+    const fileDetections = new Map<string, Detection[]>();
+    for (const [, snifferResults] of pr.result.grouped) {
+      for (const result of snifferResults) {
+        for (const detection of result.detections) {
+          const existing = fileDetections.get(detection.filePath) ?? [];
+          existing.push(detection);
+          fileDetections.set(detection.filePath, existing);
+        }
+      }
+    }
+
+    for (const [filePath, detections] of fileDetections) {
+      lines.push('');
+      lines.push(`### \`${filePath}\``);
+
+      for (const detection of detections) {
+        lines.push('');
+        lines.push(`#### ⚠ ${formatSnifferName(detection.snifferName)} (line ${detection.line})`);
+        lines.push(detection.message);
+        lines.push('');
+        lines.push('**Suggestion:**');
+        lines.push(`> ${detection.suggestion}`);
+      }
+    }
+
+    lines.push('');
+    lines.push('---');
+  }
+
+  // Workspace summary table
+  lines.push('');
+  lines.push('## Workspace Summary');
+  lines.push('');
+  lines.push('| Package | Framework | Files | Issues |');
+  lines.push('|---------|-----------|-------|--------|');
+
+  for (const pr of packageResults) {
+    const fw = pr.frameworks.length > 0 ? pr.frameworks.join(', ') : 'generic';
+    lines.push(`| ${pr.package.name} | ${fw} | ${pr.result.fileCount} | ${pr.result.issueCount} |`);
+  }
+
+  lines.push(`| **Total** | | **${totalFiles}** | **${totalIssues}** |`);
+
+  return lines.join('\n');
 }

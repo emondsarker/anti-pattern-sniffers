@@ -1,7 +1,7 @@
 import { createInterface } from 'node:readline';
 import { writeFileSync, readFileSync, existsSync, appendFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import type { Detection, SnifferResult } from '../sniffers/sniffer-interface.js';
+import type { Detection, SnifferResult, PackageResult } from '../sniffers/sniffer-interface.js';
 
 // ANSI codes
 const RESET = '\x1b[0m';
@@ -23,6 +23,7 @@ const SHOW_CURSOR = '\x1b[?25h';
 interface SmellGroup {
   name: string;
   label: string;
+  packageName?: string;
   detections: Detection[];
   collapsed: boolean;
 }
@@ -33,6 +34,7 @@ interface ViewerState {
   showDetails: boolean;
   filterSmell: string | null; // null = show all
   filterFramework: string | null; // null = show all
+  filterPackage: string | null; // null = show all packages
   batchSize: number;
   totalIssues: number;
   fileCount: number;
@@ -90,6 +92,53 @@ function groupDetections(
   return groups;
 }
 
+function groupDetectionsFromPackages(
+  packageResults: PackageResult[],
+  batchSize: number,
+): SmellGroup[] {
+  // Collect all detections grouped by (package + sniffer name)
+  const byKey = new Map<string, { packageName: string; snifferName: string; detections: Detection[] }>();
+
+  for (const pr of packageResults) {
+    for (const [, snifferResults] of pr.result.grouped) {
+      for (const result of snifferResults) {
+        for (const detection of result.detections) {
+          const key = `${pr.package.name}::${detection.snifferName}`;
+          const existing = byKey.get(key);
+          if (existing) {
+            existing.detections.push(detection);
+          } else {
+            byKey.set(key, {
+              packageName: pr.package.name,
+              snifferName: detection.snifferName,
+              detections: [detection],
+            });
+          }
+        }
+      }
+    }
+  }
+
+  const groups: SmellGroup[] = [];
+  let remaining = batchSize;
+
+  for (const [, entry] of byKey) {
+    if (remaining <= 0) break;
+    const batch = entry.detections.slice(0, remaining);
+    remaining -= batch.length;
+
+    groups.push({
+      name: entry.snifferName,
+      label: `[${entry.packageName}] ${formatSmellName(entry.snifferName)}`,
+      packageName: entry.packageName,
+      detections: batch,
+      collapsed: false,
+    });
+  }
+
+  return groups;
+}
+
 function getVisibleItems(state: ViewerState): Array<{ type: 'group'; groupIdx: number } | { type: 'item'; groupIdx: number; itemIdx: number }> {
   const items: Array<{ type: 'group'; groupIdx: number } | { type: 'item'; groupIdx: number; itemIdx: number }> = [];
 
@@ -97,6 +146,7 @@ function getVisibleItems(state: ViewerState): Array<{ type: 'group'; groupIdx: n
     const group = state.groups[gi];
     if (state.filterSmell && group.name !== state.filterSmell) continue;
     if (state.filterFramework && !group.name.startsWith(state.filterFramework + '/')) continue;
+    if (state.filterPackage && group.packageName !== state.filterPackage) continue;
 
     items.push({ type: 'group', groupIdx: gi });
 
@@ -186,9 +236,10 @@ function render(state: ViewerState): string {
   // Action bar
   const filterLabel = state.filterSmell ? `${YELLOW}[f]ilter: ${state.filterSmell}${RESET}` : `${DIM}[f]ilter${RESET}`;
   const fwLabel = state.filterFramework ? `${YELLOW}[F]ramework: ${state.filterFramework}${RESET}` : `${DIM}[F]ramework${RESET}`;
+  const pkgLabel = state.filterPackage ? `${YELLOW}[P]ackage: ${state.filterPackage}${RESET}` : `${DIM}[P]ackage${RESET}`;
   const detailLabel = state.showDetails ? `${CYAN}[d]etails: on${RESET}` : `${DIM}[d]etails${RESET}`;
 
-  lines.push(`  ${GREEN}[c]${RESET}opy as prompt  ${GREEN}[a]${RESET}ll as md  ${RED}[x]${RESET} ignore  ${filterLabel}  ${fwLabel}  ${detailLabel}  ${DIM}[q]uit${RESET}`);
+  lines.push(`  ${GREEN}[c]${RESET}opy as prompt  ${GREEN}[a]${RESET}ll as md  ${RED}[x]${RESET} ignore  ${filterLabel}  ${fwLabel}  ${pkgLabel}  ${detailLabel}  ${DIM}[q]uit${RESET}`);
   lines.push(`  ${DIM}↑/↓ navigate  ←/→ or enter collapse/expand  tab next group${RESET}`);
 
   return lines.join('\n');
@@ -227,6 +278,7 @@ function allToMarkdown(state: ViewerState): string {
   for (const group of state.groups) {
     if (state.filterSmell && group.name !== state.filterSmell) continue;
     if (state.filterFramework && !group.name.startsWith(state.filterFramework + '/')) continue;
+    if (state.filterPackage && group.packageName !== state.filterPackage) continue;
 
     lines.push(`## ${group.label} (${group.detections.length} issues)`);
     lines.push('');
@@ -303,8 +355,11 @@ export async function interactiveViewer(
   fileCount: number,
   targetDir: string,
   batchSize: number,
+  packageResults?: PackageResult[],
 ): Promise<void> {
-  const groups = groupDetections(results, batchSize);
+  const groups = packageResults && packageResults.length > 0
+    ? groupDetectionsFromPackages(packageResults, batchSize)
+    : groupDetections(results, batchSize);
 
   if (groups.length === 0) {
     console.log(`\n  ${GREEN}${BOLD}✔ No anti-patterns detected!${RESET}\n`);
@@ -317,6 +372,7 @@ export async function interactiveViewer(
     showDetails: false,
     filterSmell: null,
     filterFramework: null,
+    filterPackage: null,
     batchSize,
     totalIssues,
     fileCount,
@@ -453,7 +509,7 @@ export async function interactiveViewer(
       }
 
       // p = print current detection markdown to stdout (fallback for no clipboard)
-      if (key === 'p' || key === 'P') {
+      if (key === 'p') {
         const current = items[state.cursor];
         if (current && current.type === 'item') {
           const det = state.groups[current.groupIdx].detections[current.itemIdx];
@@ -542,6 +598,25 @@ export async function interactiveViewer(
             state.filterFramework = null; // show all
           } else {
             state.filterFramework = frameworks[idx + 1];
+          }
+        }
+        state.cursor = 0;
+        redraw();
+        return;
+      }
+
+      // P = cycle package filter
+      if (key === 'P') {
+        const pkgNames = [...new Set(state.groups.map(g => g.packageName).filter(Boolean))] as string[];
+        if (pkgNames.length === 0) return; // no packages to filter
+        if (state.filterPackage === null) {
+          state.filterPackage = pkgNames[0] || null;
+        } else {
+          const idx = pkgNames.indexOf(state.filterPackage);
+          if (idx === pkgNames.length - 1) {
+            state.filterPackage = null;
+          } else {
+            state.filterPackage = pkgNames[idx + 1];
           }
         }
         state.cursor = 0;
