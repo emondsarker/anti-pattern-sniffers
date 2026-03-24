@@ -1,12 +1,13 @@
 import { parseArgs } from './arg-parser.js';
 import { loadConfig } from './config-loader.js';
 import { printHelp, printVersion } from './help.js';
+import { runInitWizard } from './init-wizard.js';
 import { orchestrate } from '../core/orchestrator.js';
 import { interactiveViewer } from '../tui/interactive-viewer.js';
 import { formatOutput } from '../output/formatter.js';
 import { setLogLevel } from '../utils/logger.js';
-import { writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { writeFileSync, existsSync } from 'node:fs';
+import { resolve, join } from 'node:path';
 import type { SnifferResult } from '../sniffers/sniffer-interface.js';
 
 const DEFAULT_BATCH_SIZE = 10;
@@ -57,6 +58,12 @@ async function main(): Promise<void> {
 
   if (flags.version) {
     printVersion();
+    process.exit(0);
+  }
+
+  // Handle 'init' subcommand
+  if (positionals[0] === 'init') {
+    await runInitWizard();
     process.exit(0);
   }
 
