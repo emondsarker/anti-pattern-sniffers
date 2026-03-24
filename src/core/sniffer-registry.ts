@@ -84,9 +84,10 @@ export class SnifferRegistry {
 
     for (const [name, entry] of this.sniffers) {
       // Skip un-namespaced duplicates if the namespaced version is also registered
-      if (!name.includes('/') && this.sniffers.has(`react/${name}`)) {
-        // Only process the un-namespaced version if config references it by short name
-        if (!snifferConfig[name]) continue;
+      if (!name.includes('/')) {
+        // Skip un-namespaced entry if any namespaced version exists
+        const hasNamespaced = [...this.sniffers.keys()].some(k => k.endsWith(`/${name}`));
+        if (hasNamespaced && !snifferConfig[name]) continue;
       }
 
       // Check config — try both namespaced and un-namespaced keys
@@ -108,7 +109,7 @@ export class SnifferRegistry {
       };
 
       enabled.push({
-        name: name.includes('/') ? name : name,
+        name,
         snifferPath: entry.snifferPath,
         config: mergedConfig,
       });

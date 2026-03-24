@@ -3,6 +3,8 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { FrameworkDefinition } from '../sniffers/sniffer-interface.js';
 import { REACT_FRAMEWORK } from '../sniffers/react/index.js';
+import { EXPRESS_FRAMEWORK } from '../sniffers/express/index.js';
+import { NESTJS_FRAMEWORK } from '../sniffers/nestjs/index.js';
 
 // ANSI codes
 const RESET = '\x1b[0m';
@@ -14,34 +16,10 @@ const YELLOW = '\x1b[33m';
 const MAGENTA = '\x1b[35m';
 const WHITE = '\x1b[37m';
 
-// All known frameworks (Express and NestJS will be added here in later phases)
 const ALL_FRAMEWORKS: FrameworkDefinition[] = [
   REACT_FRAMEWORK,
-  {
-    name: 'express',
-    label: 'Express',
-    defaultInclude: ['**/*.{js,ts}'],
-    sniffers: [
-      { name: 'god-routes', defaultConfig: { maxRoutes: 10 } },
-      { name: 'missing-error-handling', defaultConfig: {} },
-      { name: 'fat-controllers', defaultConfig: { maxLines: 50, maxAwaits: 3 } },
-      { name: 'no-input-validation', defaultConfig: {} },
-      { name: 'callback-hell', defaultConfig: { maxNesting: 3 } },
-      { name: 'hardcoded-secrets', defaultConfig: {} },
-    ].map(s => ({ ...s, path: '' })), // paths will be set when sniffers are implemented
-  },
-  {
-    name: 'nestjs',
-    label: 'NestJS',
-    defaultInclude: ['**/*.ts'],
-    sniffers: [
-      { name: 'god-service', defaultConfig: { maxDependencies: 8, maxMethods: 15 } },
-      { name: 'missing-dtos', defaultConfig: {} },
-      { name: 'business-logic-in-controllers', defaultConfig: { maxLines: 50 } },
-      { name: 'missing-guards', defaultConfig: {} },
-      { name: 'magic-strings', defaultConfig: { maxOccurrences: 3 } },
-    ].map(s => ({ ...s, path: '' })),
-  },
+  EXPRESS_FRAMEWORK,
+  NESTJS_FRAMEWORK,
 ];
 
 // Framework descriptions for the wizard
@@ -209,9 +187,8 @@ export async function runInitWizard(): Promise<void> {
     const isDetected = detected.includes(fw.name);
     const defaultMark = isDetected ? `${GREEN} (detected)${RESET}` : '';
     const snifferCount = fw.sniffers.length;
-    const implemented = fw.name === 'react'; // Only React is implemented so far
 
-    console.log(`    ${BOLD}${fw.label}${RESET}${defaultMark} — ${DIM}${FRAMEWORK_DESCRIPTIONS[fw.name] || ''} (${snifferCount} sniffers${implemented ? '' : ', coming soon'})${RESET}`);
+    console.log(`    ${BOLD}${fw.label}${RESET}${defaultMark} — ${DIM}${FRAMEWORK_DESCRIPTIONS[fw.name] || ''} (${snifferCount} sniffers)${RESET}`);
   }
 
   console.log('');

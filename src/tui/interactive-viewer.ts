@@ -30,8 +30,6 @@ interface SmellGroup {
 interface ViewerState {
   groups: SmellGroup[];
   cursor: number; // Index into flat list of visible items
-  selectedGroup: number; // Which group is focused
-  selectedItem: number; // Which item within the group
   showDetails: boolean;
   filterSmell: string | null; // null = show all
   filterFramework: string | null; // null = show all
@@ -316,8 +314,6 @@ export async function interactiveViewer(
   const state: ViewerState = {
     groups,
     cursor: 0,
-    selectedGroup: 0,
-    selectedItem: -1,
     showDetails: false,
     filterSmell: null,
     filterFramework: null,

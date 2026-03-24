@@ -1,6 +1,5 @@
 import type { Detection, SnifferExport, Severity } from '../sniffer-interface.js';
 import {
-  stripCommentsAndStrings,
   getLineNumber,
   getColumnNumber,
 } from '../shared/regex-helpers.js';

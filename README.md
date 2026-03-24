@@ -6,7 +6,7 @@ Zero-dependency CLI tool that detects anti-patterns across **React**, **Express*
 
 - **Zero runtime dependencies** — uses only Node.js built-ins
 - **14 built-in sniffers** across 3 frameworks (React, Express, NestJS)
-- **Setup wizard** — `ras init` to pick frameworks and sniffers
+- **Setup wizard** — `aps init` to pick frameworks and sniffers
 - **Interactive TUI** — browse results, copy as AI prompt, ignore components
 - **Framework filter** — focus on one framework at a time in the TUI
 - **Batch mode** — focus on the first N issues at a time
@@ -19,41 +19,41 @@ Zero-dependency CLI tool that detects anti-patterns across **React**, **Express*
 ## Installation
 
 ```bash
-npm install --save-dev react-anti-pattern-sniffer
+npm install --save-dev anti-pattern-sniffer
 ```
 
 ## Quick Start
 
 ```bash
 # Interactive setup — pick your frameworks and sniffers
-ras init
+aps init
 
 # Scan current directory
-ras
+aps
 
 # Interactive mode — browse results in a TUI
-ras -i
+aps -i
 
 # Batch mode — show only the first 10 issues
-ras -b 10
+aps -b 10
 
 # Interactive + batch — browse first 20 issues in TUI
-ras -i -b 20
+aps -i -b 20
 
 # Output JSON report
-ras --format json --output report.json
+aps --format json --output report.json
 
 # Run only Express sniffers
-ras -s express/god-routes,express/fat-controllers
+aps -s express/god-routes,express/fat-controllers
 ```
 
 ## CLI Options
 
 ```
-Usage: ras [options] [dir]
+Usage: aps [options] [dir]
 
 Commands:
-  ras init                 Interactive setup wizard
+  aps init                 Interactive setup wizard
 
 Options:
   -d, --dir <path>         Target directory (default: cwd)
@@ -74,7 +74,7 @@ Options:
 
 ## Interactive Mode
 
-Launch with `ras -i` to get a keyboard-driven TUI for browsing results:
+Launch with `aps -i` to get a keyboard-driven TUI for browsing results:
 
 ```
   Anti-Pattern Sniffer  │  12/42 issues shown  •  85 files scanned
@@ -140,10 +140,10 @@ Launch with `ras -i` to get a keyboard-driven TUI for browsing results:
 
 ## Setup Wizard
 
-Run `ras init` to interactively configure your project:
+Run `aps init` to interactively configure your project:
 
 ```
-$ ras init
+$ aps init
 
   Anti-Pattern Sniffer — Setup
 
@@ -164,7 +164,7 @@ This generates a `.snifferrc.json` with the right `include` patterns and enabled
 
 ## Configuration
 
-Create `.snifferrc.json` in your project root (or use `ras init`):
+Create `.snifferrc.json` in your project root (or use `aps init`):
 
 ```json
 {
@@ -222,7 +222,7 @@ src/hooks/useMonolith.ts:useMonolith  # god-hook
 Add to `.husky/pre-commit`:
 
 ```bash
-npx ras --quiet
+npx aps --quiet
 ```
 
 Exit codes:
@@ -277,7 +277,7 @@ Plugins are validated before execution:
 ## Programmatic API
 
 ```js
-const { orchestrate } = require('react-anti-pattern-sniffer');
+const { orchestrate } = require('anti-pattern-sniffer');
 
 const result = await orchestrate(config, targetDir);
 console.log(result.output);      // formatted report
