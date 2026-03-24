@@ -6,7 +6,7 @@ import { SnifferRegistry } from './sniffer-registry.js';
 import { WorkerPool } from './worker-pool.js';
 import { formatOutput } from '../output/formatter.js';
 import { debug, info, warn, step, success, fileProgress } from '../utils/logger.js';
-import { loadSnifferIgnore, applySnifferIgnore } from './sniffer-ignore.js';
+import { loadSnifferIgnore, applySnifferIgnore, type IgnoreEntry } from './sniffer-ignore.js';
 
 export interface OrchestrateResult {
   output: string;
@@ -19,7 +19,11 @@ export interface OrchestrateResult {
  * Main orchestration pipeline.
  * Discovers files, loads sniffers, dispatches to workers, collects results, formats output.
  */
-export async function orchestrate(config: SnifferConfig, targetDir: string): Promise<OrchestrateResult> {
+export async function orchestrate(
+  config: SnifferConfig,
+  targetDir: string,
+  preloadedIgnore?: IgnoreEntry[],
+): Promise<OrchestrateResult> {
   const startTime = Date.now();
 
   // 1. Discover target files
@@ -141,7 +145,7 @@ export async function orchestrate(config: SnifferConfig, targetDir: string): Pro
   }
 
   // 5. Apply .snifferignore
-  const ignoreEntries = loadSnifferIgnore(targetDir);
+  const ignoreEntries = preloadedIgnore ?? loadSnifferIgnore(targetDir);
   const filteredResults = ignoreEntries.length > 0
     ? applySnifferIgnore(allResults, ignoreEntries, targetDir)
     : allResults;

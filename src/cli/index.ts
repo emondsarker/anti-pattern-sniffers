@@ -3,6 +3,8 @@ import { loadConfig } from './config-loader.js';
 import { printHelp, printVersion } from './help.js';
 import { runInitWizard } from './init-wizard.js';
 import { orchestrate } from '../core/orchestrator.js';
+import { discoverWorkspace } from '../core/workspace-discoverer.js';
+import { orchestrateWorkspace } from '../core/workspace-orchestrator.js';
 import { interactiveViewer } from '../tui/interactive-viewer.js';
 import { formatOutput } from '../output/formatter.js';
 import { setLogLevel } from '../utils/logger.js';
@@ -88,13 +90,53 @@ async function main(): Promise<void> {
   }
 
   try {
-    const config = loadConfig(flags);
     const targetDir = typeof flags.dir === 'string'
       ? resolve(flags.dir)
       : positionals[0]
         ? resolve(positionals[0])
         : process.cwd();
 
+    // Check for workspace/monorepo mode
+    const workspace = discoverWorkspace(targetDir, flags);
+
+    if (workspace.isMonorepo && flags['no-workspace'] !== true) {
+      // Workspace mode
+      const wsResult = await orchestrateWorkspace(workspace, flags);
+
+      const output = wsResult.output;
+
+      if (isInteractive) {
+        // Merge all grouped results for TUI display
+        const allGrouped = new Map<string, SnifferResult[]>();
+        for (const pr of wsResult.packages) {
+          for (const [filePath, results] of pr.result.grouped) {
+            allGrouped.set(filePath, [...(allGrouped.get(filePath) || []), ...results]);
+          }
+        }
+        await interactiveViewer(
+          allGrouped,
+          wsResult.totalIssueCount,
+          wsResult.totalFileCount,
+          targetDir,
+          batchSize,
+          wsResult.packages,
+        );
+        process.exit(wsResult.totalIssueCount > 0 ? 1 : 0);
+      }
+
+      const outputPath = typeof flags.output === 'string' ? flags.output : null;
+
+      if (outputPath) {
+        writeFileSync(outputPath, output, 'utf8');
+      } else if (!flags.quiet) {
+        process.stdout.write(output);
+      }
+
+      process.exit(wsResult.totalIssueCount > 0 ? 1 : 0);
+    }
+
+    // Single-project mode
+    const config = loadConfig(flags);
     const result = await orchestrate(config, targetDir);
 
     if (isInteractive) {

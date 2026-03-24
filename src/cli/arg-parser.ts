@@ -15,6 +15,7 @@ const SHORT_ALIASES: Record<string, string> = {
   '-q': '--quiet',
   '-i': '--interactive',
   '-b': '--batch',
+  '-W': '--workspace',
 };
 
 /**

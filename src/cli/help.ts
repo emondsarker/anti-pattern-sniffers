@@ -27,6 +27,12 @@ Options:
   -h, --help               Show this help message
   -v, --version            Show version number
 
+Workspace:
+  -W, --workspace          Force workspace/monorepo mode
+      --no-workspace       Force single-project mode
+      --packages <dirs>    Comma-separated package directories
+      --package-filter <p> Only scan packages matching pattern
+
 Examples:
   aps                                    Scan current directory
   aps src/                               Scan specific directory

@@ -2,7 +2,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import type { SnifferResult } from '../sniffers/sniffer-interface.js';
 
-interface IgnoreEntry {
+export interface IgnoreEntry {
   filePath: string; // relative path (e.g., "src/components/Foo.tsx")
   componentName: string | null; // null = ignore entire file
   snifferName: string | null; // null = ignore for all sniffers
