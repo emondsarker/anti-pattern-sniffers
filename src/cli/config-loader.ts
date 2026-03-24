@@ -1,6 +1,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { SnifferConfig } from '../sniffers/sniffer-interface.js';
+import { detectFrameworks } from '../utils/framework-detector.js';
 
 const DEFAULT_CONFIG: SnifferConfig = {
   frameworks: ['react'],
@@ -74,43 +75,25 @@ function findConfigFile(dir: string): string | null {
 }
 
 /**
- * Load configuration by merging:
- * 1. Built-in defaults
- * 2. Config file (.snifferrc.json or --config path)
- * 3. CLI flags
+ * Parse a config file from disk and return the parsed object.
  */
-export function loadConfig(flags: Record<string, string | boolean>): SnifferConfig {
-  let fileConfig: Record<string, unknown> = {};
-
-  // Determine config file path
-  const configPath = typeof flags.config === 'string'
-    ? resolve(flags.config)
-    : findConfigFile(process.cwd());
-
-  if (configPath) {
-    if (!existsSync(configPath)) {
-      if (flags.config) {
-        throw new Error(`Config file not found: ${configPath}`);
-      }
-    } else {
-      try {
-        const raw = readFileSync(configPath, 'utf8');
-        fileConfig = JSON.parse(raw);
-      } catch (e) {
-        throw new Error(
-          `Failed to parse config file ${configPath}: ${e instanceof Error ? e.message : String(e)}`,
-        );
-      }
-    }
+function parseConfigFile(filePath: string): Record<string, unknown> {
+  try {
+    const raw = readFileSync(filePath, 'utf8');
+    return JSON.parse(raw);
+  } catch (e) {
+    throw new Error(
+      `Failed to parse config file ${filePath}: ${e instanceof Error ? e.message : String(e)}`,
+    );
   }
+}
 
-  // Merge defaults + file config
-  const merged = deepMerge(
-    DEFAULT_CONFIG as unknown as Record<string, unknown>,
-    fileConfig,
-  ) as unknown as SnifferConfig;
+/**
+ * Apply CLI flag overrides to a config object.
+ */
+function applyCLIFlags(config: SnifferConfig, flags: Record<string, string | boolean>): SnifferConfig {
+  const merged = { ...config, sniffers: { ...config.sniffers } };
 
-  // Apply CLI flag overrides
   if (typeof flags.dir === 'string') {
     // Dir is handled at orchestrator level, not in config
   }
@@ -156,6 +139,81 @@ export function loadConfig(flags: Record<string, string | boolean>): SnifferConf
   }
 
   return merged;
+}
+
+/**
+ * Load configuration by merging:
+ * 1. Built-in defaults
+ * 2. Config file (.snifferrc.json or --config path)
+ * 3. CLI flags
+ */
+export function loadConfig(flags: Record<string, string | boolean>): SnifferConfig {
+  let fileConfig: Record<string, unknown> = {};
+
+  // Determine config file path
+  const configPath = typeof flags.config === 'string'
+    ? resolve(flags.config)
+    : findConfigFile(process.cwd());
+
+  if (configPath) {
+    if (!existsSync(configPath)) {
+      if (flags.config) {
+        throw new Error(`Config file not found: ${configPath}`);
+      }
+    } else {
+      fileConfig = parseConfigFile(configPath);
+    }
+  }
+
+  // Merge defaults + file config
+  const merged = deepMerge(
+    DEFAULT_CONFIG as unknown as Record<string, unknown>,
+    fileConfig,
+  ) as unknown as SnifferConfig;
+
+  // Apply CLI flag overrides
+  return applyCLIFlags(merged, flags);
+}
+
+/**
+ * Load config with inheritance: DEFAULT → root config → package config → CLI flags.
+ * Used in workspace mode where each package may have its own .snifferrc.json.
+ */
+export function loadConfigForPackage(
+  flags: Record<string, string | boolean>,
+  rootDir: string,
+  packageDir: string,
+): SnifferConfig {
+  let config = { ...DEFAULT_CONFIG };
+
+  // 1. Merge root config
+  const rootConfigFile = findConfigFile(rootDir);
+  if (rootConfigFile) {
+    const rootConfig = parseConfigFile(rootConfigFile);
+    config = deepMerge(config as unknown as Record<string, unknown>, rootConfig) as unknown as SnifferConfig;
+  }
+
+  // 2. Merge package config (if different from root)
+  if (packageDir !== rootDir) {
+    const pkgConfigFile = findConfigFile(packageDir);
+    if (pkgConfigFile) {
+      const pkgConfig = parseConfigFile(pkgConfigFile);
+      config = deepMerge(config as unknown as Record<string, unknown>, pkgConfig) as unknown as SnifferConfig;
+    }
+  }
+
+  // 3. Auto-detect frameworks if not specified in any config
+  if (!config.frameworks || config.frameworks.length === 0) {
+    const detected = detectFrameworks(packageDir);
+    if (detected.length > 0) {
+      config.frameworks = detected;
+    }
+  }
+
+  // 4. Apply CLI flag overrides (same logic as existing loadConfig)
+  config = applyCLIFlags(config, flags);
+
+  return config;
 }
 
 export { DEFAULT_CONFIG };

@@ -1,10 +1,12 @@
 import { createInterface } from 'node:readline';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { FrameworkDefinition } from '../sniffers/sniffer-interface.js';
 import { REACT_FRAMEWORK } from '../sniffers/react/index.js';
 import { EXPRESS_FRAMEWORK } from '../sniffers/express/index.js';
 import { NESTJS_FRAMEWORK } from '../sniffers/nestjs/index.js';
+import { detectFrameworks } from '../utils/framework-detector.js';
+import { discoverWorkspace } from '../core/workspace-discoverer.js';
 
 // ANSI codes
 const RESET = '\x1b[0m';
@@ -54,32 +56,6 @@ interface WizardState {
   selectedFrameworks: Set<string>;
   enabledSniffers: Record<string, boolean>;
   detectedFrameworks: string[];
-}
-
-/**
- * Detect which frameworks a project uses by scanning package.json dependencies.
- */
-function detectFrameworks(cwd: string): string[] {
-  const detected: string[] = [];
-  const pkgPath = join(cwd, 'package.json');
-
-  if (!existsSync(pkgPath)) return detected;
-
-  try {
-    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
-    const allDeps = {
-      ...(pkg.dependencies || {}),
-      ...(pkg.devDependencies || {}),
-    };
-
-    if (allDeps['react'] || allDeps['react-dom']) detected.push('react');
-    if (allDeps['express']) detected.push('express');
-    if (allDeps['@nestjs/core']) detected.push('nestjs');
-  } catch {
-    // Ignore parse errors
-  }
-
-  return detected;
 }
 
 /**
@@ -160,6 +136,82 @@ export async function runInitWizard(): Promise<void> {
   console.log('');
   console.log(`  ${MAGENTA}${BOLD}Anti-Pattern Sniffer${RESET} ${DIM}— Setup Wizard${RESET}`);
   console.log('');
+
+  // Check for workspace/monorepo
+  const workspace = discoverWorkspace(cwd, {});
+  if (workspace.isMonorepo) {
+    console.log(`  ${CYAN}${BOLD}Workspace detected${RESET} ${DIM}(${workspace.type}, ${workspace.packages.length} packages)${RESET}`);
+    console.log('');
+
+    for (const pkg of workspace.packages) {
+      const pkgFrameworks = detectFrameworks(pkg.path);
+      const fwLabels = pkgFrameworks.length > 0
+        ? pkgFrameworks.map(f => { const fw = ALL_FRAMEWORKS.find(a => a.name === f); return fw ? fw.label : f; }).join(', ')
+        : `${DIM}no framework detected${RESET}`;
+      console.log(`    ${WHITE}${pkg.name}${RESET} ${DIM}(${pkg.relativePath})${RESET} — ${fwLabels}`);
+    }
+
+    console.log('');
+    const rlWs = createInterface({ input: process.stdin, output: process.stdout });
+    const wsMode = await ask(rlWs, `  ${CYAN}Generate configs for:${RESET} ${DIM}(1) Root only, (2) Root + per-package${RESET} [1]: `);
+    rlWs.close();
+
+    if (wsMode === '2') {
+      // Per-package config generation
+      const rootConfig: Record<string, unknown> = {
+        exclude: ['node_modules', 'dist', 'build', '**/*.test.*', '**/*.spec.*'],
+        parallel: true,
+        maxWorkers: 4,
+        timeoutMs: 30000,
+        outputFormat: 'markdown',
+        plugins: [],
+      };
+
+      // Write root config
+      const rootJson = JSON.stringify(rootConfig, null, 2);
+      writeFileSync(configPath, rootJson + '\n', 'utf8');
+      console.log(`  ${GREEN}${BOLD}✔${RESET} Root .snifferrc.json ${DIM}(shared settings)${RESET}`);
+
+      // Generate per-package configs
+      for (const pkg of workspace.packages) {
+        const pkgFrameworks = detectFrameworks(pkg.path);
+        if (pkgFrameworks.length === 0) continue;
+
+        const includePatterns: string[] = [];
+        const sniffers: Record<string, Record<string, unknown>> = {};
+
+        for (const fwName of pkgFrameworks) {
+          const fw = ALL_FRAMEWORKS.find(f => f.name === fwName);
+          if (!fw) continue;
+          includePatterns.push(...fw.defaultInclude);
+          for (const sniffer of fw.sniffers) {
+            sniffers[sniffer.name] = {
+              enabled: true,
+              severity: 'warning',
+              ...(sniffer.defaultConfig || {}),
+            };
+          }
+        }
+
+        const pkgConfig = {
+          frameworks: pkgFrameworks,
+          include: [...new Set(includePatterns)],
+          sniffers,
+        };
+
+        const pkgConfigPath = join(pkg.path, '.snifferrc.json');
+        writeFileSync(pkgConfigPath, JSON.stringify(pkgConfig, null, 2) + '\n', 'utf8');
+        console.log(`  ${GREEN}${BOLD}✔${RESET} ${pkg.relativePath}/.snifferrc.json ${DIM}(${pkgFrameworks.join(', ')})${RESET}`);
+      }
+
+      console.log('');
+      console.log(`  ${GREEN}${BOLD}Done!${RESET} Run ${WHITE}aps${RESET} to scan the workspace.`);
+      console.log('');
+      return;
+    }
+
+    // Fall through to normal single-config flow for mode "1"
+  }
 
   // Detect frameworks
   const detected = detectFrameworks(cwd);
@@ -266,5 +318,6 @@ export async function runInitWizard(): Promise<void> {
 }
 
 // Export for testing
-export { detectFrameworks, generateConfig };
+export { generateConfig };
+export { detectFrameworks } from '../utils/framework-detector.js';
 export type { WizardState };
