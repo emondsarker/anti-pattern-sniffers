@@ -7,7 +7,7 @@ import { readFileSync, unlinkSync, existsSync } from 'node:fs';
 
 const exec = promisify(execFile);
 
-const BIN = join(__dirname, '..', '..', '..', 'bin', 'react-sniff.js');
+const BIN = join(__dirname, '..', '..', '..', 'bin', 'sniff.js');
 const FIXTURES_DIR = join(__dirname, '..', '..', '..', 'test', 'fixtures');
 const PROP_EXPLOSION_DIR = join(FIXTURES_DIR, 'prop-explosion');
 const CONFIG_DIR = join(FIXTURES_DIR, 'config');
@@ -37,8 +37,8 @@ describe('CLI integration', () => {
   it('2. --version flag exits 0 and prints version number', async () => {
     const { stdout } = await exec('node', [BIN, '--version']);
     assert.ok(
-      stdout.includes('0.1.0'),
-      `Expected stdout to contain "0.1.0", got: ${stdout.trim()}`,
+      stdout.includes('0.2.0'),
+      `Expected stdout to contain "0.2.0", got: ${stdout.trim()}`,
     );
   });
 

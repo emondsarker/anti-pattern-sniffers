@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import sniffer from '../../src/sniffers/prop-explosion-sniffer.js';
+import sniffer from '../../src/sniffers/react/prop-explosion-sniffer.js';
 
 const FIXTURES_DIR = join(__dirname, '..', '..', '..', 'test', 'fixtures', 'prop-explosion');
 

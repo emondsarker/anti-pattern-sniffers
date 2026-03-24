@@ -5,7 +5,7 @@ import { join } from 'node:path';
 
 const FIXTURES_DIR = join(__dirname, '..', '..', '..', 'test', 'fixtures', 'god-hook');
 
-import sniffer from '../../src/sniffers/god-hook-sniffer.js';
+import sniffer from '../../src/sniffers/react/god-hook-sniffer.js';
 
 function loadFixture(name: string): string {
   return readFileSync(join(FIXTURES_DIR, name), 'utf-8');

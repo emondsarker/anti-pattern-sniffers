@@ -68,7 +68,7 @@ describe('markdown-renderer — summary table', () => {
     const output = renderMarkdown(results, {});
     assert.ok(output.includes('## Summary'), 'Should include Summary heading');
     assert.ok(output.includes('| Sniffer |'), 'Should include table header');
-    assert.ok(output.includes('prop-explosion'), 'Should include sniffer name in table');
+    assert.ok(output.includes('Prop Explosion'), 'Should include formatted sniffer name in table');
   });
 });
 
@@ -121,7 +121,7 @@ describe('markdown-renderer — multiple sniffers in summary', () => {
       makeResult({ snifferName: 'god-hook', filePath: 'src/App.jsx' }),
     ]);
     const output = renderMarkdown(results, {});
-    assert.ok(output.includes('prop-explosion'), 'Should include prop-explosion in summary');
-    assert.ok(output.includes('god-hook'), 'Should include god-hook in summary');
+    assert.ok(output.includes('Prop Explosion'), 'Should include Prop Explosion in summary');
+    assert.ok(output.includes('God Hook'), 'Should include God Hook in summary');
   });
 });

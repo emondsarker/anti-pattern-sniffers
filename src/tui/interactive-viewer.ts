@@ -34,6 +34,7 @@ interface ViewerState {
   selectedItem: number; // Which item within the group
   showDetails: boolean;
   filterSmell: string | null; // null = show all
+  filterFramework: string | null; // null = show all
   batchSize: number;
   totalIssues: number;
   fileCount: number;
@@ -97,6 +98,7 @@ function getVisibleItems(state: ViewerState): Array<{ type: 'group'; groupIdx: n
   for (let gi = 0; gi < state.groups.length; gi++) {
     const group = state.groups[gi];
     if (state.filterSmell && group.name !== state.filterSmell) continue;
+    if (state.filterFramework && !group.name.startsWith(state.filterFramework + '/')) continue;
 
     items.push({ type: 'group', groupIdx: gi });
 
@@ -118,7 +120,7 @@ function render(state: ViewerState): string {
   // Header
   const shownIssues = state.groups.reduce((s, g) => s + g.detections.length, 0);
   lines.push('');
-  lines.push(`  ${BOLD}${MAGENTA}React Anti-Pattern Sniffer${RESET}  ${DIM}│${RESET}  ${BOLD}${shownIssues}${RESET}${DIM}/${state.totalIssues} issues shown  •  ${state.fileCount} files scanned${RESET}`);
+  lines.push(`  ${BOLD}${MAGENTA}Anti-Pattern Sniffer${RESET}  ${DIM}│${RESET}  ${BOLD}${shownIssues}${RESET}${DIM}/${state.totalIssues} issues shown  •  ${state.fileCount} files scanned${RESET}`);
   if (state.batchSize < state.totalIssues) {
     lines.push(`  ${DIM}Batch size: ${state.batchSize} (use -b to change)${RESET}`);
   }
@@ -185,9 +187,10 @@ function render(state: ViewerState): string {
 
   // Action bar
   const filterLabel = state.filterSmell ? `${YELLOW}[f]ilter: ${state.filterSmell}${RESET}` : `${DIM}[f]ilter${RESET}`;
+  const fwLabel = state.filterFramework ? `${YELLOW}[F]ramework: ${state.filterFramework}${RESET}` : `${DIM}[F]ramework${RESET}`;
   const detailLabel = state.showDetails ? `${CYAN}[d]etails: on${RESET}` : `${DIM}[d]etails${RESET}`;
 
-  lines.push(`  ${GREEN}[c]${RESET}opy as prompt  ${GREEN}[a]${RESET}ll as md  ${RED}[x]${RESET} ignore  ${filterLabel}  ${detailLabel}  ${DIM}[q]uit${RESET}`);
+  lines.push(`  ${GREEN}[c]${RESET}opy as prompt  ${GREEN}[a]${RESET}ll as md  ${RED}[x]${RESET} ignore  ${filterLabel}  ${fwLabel}  ${detailLabel}  ${DIM}[q]uit${RESET}`);
   lines.push(`  ${DIM}↑/↓ navigate  ←/→ or enter collapse/expand  tab next group${RESET}`);
 
   return lines.join('\n');
@@ -220,11 +223,12 @@ function detectionToPromptMarkdown(det: Detection, targetDir: string): string {
 
 function allToMarkdown(state: ViewerState): string {
   const lines: string[] = [];
-  lines.push('# React Anti-Pattern Report');
+  lines.push('# Anti-Pattern Report');
   lines.push('');
 
   for (const group of state.groups) {
     if (state.filterSmell && group.name !== state.filterSmell) continue;
+    if (state.filterFramework && !group.name.startsWith(state.filterFramework + '/')) continue;
 
     lines.push(`## ${group.label} (${group.detections.length} issues)`);
     lines.push('');
@@ -316,6 +320,7 @@ export async function interactiveViewer(
     selectedItem: -1,
     showDetails: false,
     filterSmell: null,
+    filterFramework: null,
     batchSize,
     totalIssues,
     fileCount,
@@ -509,8 +514,8 @@ export async function interactiveViewer(
         return;
       }
 
-      // f = cycle filter
-      if (key === 'f' || key === 'F') {
+      // f = cycle smell filter
+      if (key === 'f') {
         const smellNames = [...new Set(state.groups.map(g => g.name))];
         if (state.filterSmell === null) {
           state.filterSmell = smellNames[0] || null;
@@ -520,6 +525,27 @@ export async function interactiveViewer(
             state.filterSmell = null; // show all
           } else {
             state.filterSmell = smellNames[idx + 1];
+          }
+        }
+        state.cursor = 0;
+        redraw();
+        return;
+      }
+
+      // F = cycle framework filter
+      if (key === 'F') {
+        const frameworks = [...new Set(state.groups.map(g => {
+          const slash = g.name.indexOf('/');
+          return slash !== -1 ? g.name.substring(0, slash) : 'other';
+        }))];
+        if (state.filterFramework === null) {
+          state.filterFramework = frameworks[0] || null;
+        } else {
+          const idx = frameworks.indexOf(state.filterFramework);
+          if (idx === frameworks.length - 1) {
+            state.filterFramework = null; // show all
+          } else {
+            state.filterFramework = frameworks[idx + 1];
           }
         }
         state.cursor = 0;

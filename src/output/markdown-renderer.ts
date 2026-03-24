@@ -32,7 +32,7 @@ export function renderMarkdown(
   const fileCount = results.size;
   const date = new Date().toISOString().split('T')[0];
 
-  lines.push('# React Anti-Pattern Report');
+  lines.push('# Anti-Pattern Report');
   lines.push('');
   lines.push(`**Scanned**: ${fileCount} files | **Issues found**: ${totalIssues} | **Date**: ${date}`);
 
@@ -71,13 +71,20 @@ export function renderMarkdown(
   lines.push('|---------|--------|----------|');
 
   for (const [snifferName, entry] of summary) {
-    lines.push(`| ${snifferName} | ${entry.count} | ${entry.severity} |`);
+    lines.push(`| ${formatSnifferName(snifferName)} | ${entry.count} | ${entry.severity} |`);
   }
 
   return lines.join('\n');
 }
 
 function formatSnifferName(name: string): string {
+  // Handle namespaced names: "express/god-routes" → "Express > God Routes"
+  if (name.includes('/')) {
+    const [framework, sniffer] = name.split('/');
+    const fwLabel = framework.charAt(0).toUpperCase() + framework.slice(1);
+    const snifferLabel = sniffer.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    return `${fwLabel} > ${snifferLabel}`;
+  }
   return name
     .split('-')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
