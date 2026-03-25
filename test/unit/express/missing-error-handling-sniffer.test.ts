@@ -72,6 +72,26 @@ describe('missing-error-handling-sniffer — true negatives', () => {
     const detections = sniffer.detect('', 'empty.js', {});
     assert.deepEqual(detections, []);
   });
+
+  it('does NOT flag file with no relevant patterns', () => {
+    const content = 'const x = 1 + 2;\nconsole.log(x);\n';
+    const detections = sniffer.detect(content, 'test.js', {});
+    assert.deepEqual(detections, []);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
+describe('missing-error-handling-sniffer — configuration', () => {
+  it('respects custom severity override', () => {
+    const content = loadFixture('no-try-catch.js');
+    const detections = sniffer.detect(content, 'no-try-catch.js', { severity: 'error' });
+    assert.ok(detections.length > 0);
+    for (const d of detections) {
+      assert.equal(d.severity, 'error');
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

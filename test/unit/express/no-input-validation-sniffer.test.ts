@@ -78,6 +78,20 @@ describe('no-input-validation-sniffer — true negatives', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
+describe('no-input-validation-sniffer — configuration', () => {
+  it('respects custom severity override', () => {
+    const content = loadFixture('no-validation.js');
+    const detections = sniffer.detect(content, 'no-validation.js', { severity: 'error' });
+    assert.ok(detections.length > 0);
+    for (const d of detections) {
+      assert.equal(d.severity, 'error');
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Validation library detection
 // ---------------------------------------------------------------------------
 describe('no-input-validation-sniffer — validation libraries', () => {

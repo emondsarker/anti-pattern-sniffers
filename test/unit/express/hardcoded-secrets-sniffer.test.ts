@@ -83,6 +83,26 @@ describe('hardcoded-secrets-sniffer — true negatives', () => {
     const detections = sniffer.detect('', 'empty.js', {});
     assert.deepEqual(detections, []);
   });
+
+  it('does NOT flag file with no relevant patterns', () => {
+    const content = 'const x = 1 + 2;\nconsole.log(x);\n';
+    const detections = sniffer.detect(content, 'test.js', {});
+    assert.deepEqual(detections, []);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
+describe('hardcoded-secrets-sniffer — configuration', () => {
+  it('respects custom severity override', () => {
+    const content = loadFixture('with-secrets.js');
+    const detections = sniffer.detect(content, 'with-secrets.js', { severity: 'info' });
+    assert.ok(detections.length > 0);
+    for (const d of detections) {
+      assert.equal(d.severity, 'info');
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

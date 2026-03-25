@@ -69,6 +69,12 @@ describe('fat-controllers-sniffer — true negatives', () => {
     const detections = sniffer.detect('', 'empty.js', {});
     assert.deepEqual(detections, []);
   });
+
+  it('does NOT flag file with no relevant patterns', () => {
+    const content = 'const x = 1 + 2;\nconsole.log(x);\n';
+    const detections = sniffer.detect(content, 'test.js', {});
+    assert.deepEqual(detections, []);
+  });
 });
 
 // ---------------------------------------------------------------------------

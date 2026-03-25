@@ -96,6 +96,20 @@ describe('missing-guards-sniffer — true negatives', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
+describe('missing-guards-sniffer — configuration', () => {
+  it('respects custom severity override', () => {
+    const content = loadFixture('unguarded-admin.ts');
+    const detections = sniffer.detect(content, 'unguarded-admin.ts', { severity: 'error' });
+    assert.ok(detections.length > 0);
+    for (const d of detections) {
+      assert.equal(d.severity, 'error');
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Output shape
 // ---------------------------------------------------------------------------
 describe('missing-guards-sniffer — output shape', () => {

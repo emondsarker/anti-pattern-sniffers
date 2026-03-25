@@ -76,6 +76,26 @@ describe('business-logic-in-controllers-sniffer — true negatives', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
+describe('business-logic-in-controllers-sniffer — configuration', () => {
+  it('respects custom maxMethodLines threshold', () => {
+    const content = loadFixture('thin-controller.ts');
+    const detections = sniffer.detect(content, 'thin-controller.ts', { maxMethodLines: 1 });
+    assert.ok(detections.length > 0, 'should flag when maxMethodLines is very low');
+  });
+
+  it('respects custom severity override', () => {
+    const content = loadFixture('fat-controller.ts');
+    const detections = sniffer.detect(content, 'fat-controller.ts', { severity: 'error' });
+    assert.ok(detections.length > 0);
+    for (const d of detections) {
+      assert.equal(d.severity, 'error');
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Output shape
 // ---------------------------------------------------------------------------
 describe('business-logic-in-controllers-sniffer — output shape', () => {

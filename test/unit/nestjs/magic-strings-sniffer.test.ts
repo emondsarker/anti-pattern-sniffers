@@ -74,6 +74,12 @@ describe('magic-strings-sniffer — true negatives', () => {
     assert.deepEqual(detections, []);
   });
 
+  it('does NOT flag file with no relevant patterns', () => {
+    const content = 'const x = 1 + 2;\nconsole.log(x);\n';
+    const detections = sniffer.detect(content, 'test.ts', {});
+    assert.deepEqual(detections, []);
+  });
+
   it('2 occurrences of a string does NOT trigger at default threshold 3', () => {
     const content = [
       `if (status === 'draft') { doA(); }`,

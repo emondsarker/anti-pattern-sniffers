@@ -87,6 +87,26 @@ describe('missing-dtos-sniffer — true negatives', () => {
     const detections = sniffer.detect('', 'empty.ts', {});
     assert.deepEqual(detections, []);
   });
+
+  it('does NOT flag file with no relevant patterns', () => {
+    const content = 'const x = 1 + 2;\nconsole.log(x);\n';
+    const detections = sniffer.detect(content, 'test.ts', {});
+    assert.deepEqual(detections, []);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
+describe('missing-dtos-sniffer — configuration', () => {
+  it('respects custom severity override', () => {
+    const content = loadFixture('no-dto.ts');
+    const detections = sniffer.detect(content, 'no-dto.ts', { severity: 'error' });
+    assert.ok(detections.length > 0);
+    for (const d of detections) {
+      assert.equal(d.severity, 'error');
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
