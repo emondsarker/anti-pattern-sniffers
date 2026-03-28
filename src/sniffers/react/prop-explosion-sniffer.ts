@@ -96,7 +96,7 @@ const propExplosionSniffer: SnifferExport = {
     category: 'props',
     severity: 'warning',
     defaultConfig: {
-      threshold: 12,
+      threshold: 10,
       severity: 'warning',
     },
   },
@@ -107,7 +107,7 @@ const propExplosionSniffer: SnifferExport = {
     config: Record<string, unknown>,
   ): Detection[] {
     const threshold =
-      typeof config.threshold === 'number' ? config.threshold : 12;
+      typeof config.threshold === 'number' ? config.threshold : 10;
     const severity: Severity =
       (config.severity as Severity) || 'warning';
     const ignoredProps: string[] = Array.isArray(config.ignoredProps)

@@ -179,7 +179,7 @@ const sniffer: SnifferExport = {
     defaultConfig: {
       severity: 'warning',
       whitelistedProps: DEFAULT_WHITELISTED_PROPS,
-      minPassThroughProps: 5,
+      minPassThroughProps: 4,
     },
   },
 
@@ -193,7 +193,7 @@ const sniffer: SnifferExport = {
       ? (config.whitelistedProps as string[])
       : DEFAULT_WHITELISTED_PROPS;
     const minPassThroughProps: number =
-      typeof config.minPassThroughProps === 'number' ? config.minPassThroughProps : 5;
+      typeof config.minPassThroughProps === 'number' ? config.minPassThroughProps : 4;
 
     return detectPassThroughProps(fileContent, filePath, whitelistedProps, severity, minPassThroughProps);
   },
