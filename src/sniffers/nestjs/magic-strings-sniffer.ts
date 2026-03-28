@@ -9,21 +9,36 @@ const CONDITIONAL_STRING = /(?:===\s*|!==\s*|case\s+)(['"])([^'"]+)\1/g;
 
 /**
  * Extract string values declared in TypeScript union literal types.
- * Matches patterns like: type Mode = 'edit' | 'drag' | 'resize'
+ * Matches patterns like:
+ *   type Mode = 'edit' | 'drag' | 'resize'
+ *   flowState: 'idle' | 'extracting' | 'complete'
+ *   status: 'asc' | 'desc' | false
  */
 function extractUnionLiteralValues(source: string): Set<string> {
   const values = new Set<string>();
-  const regex = /type\s+\w+\s*=\s*((?:['"][^'"]*['"])(?:\s*\|\s*(?:['"][^'"]*['"]|[^'"\n;]*))*)/g;
+
+  // Pattern 1: type alias declarations — type Mode = 'edit' | 'drag'
+  const typeAliasRegex = /type\s+\w+\s*=\s*((?:['"][^'"]*['"])(?:\s*\|\s*(?:['"][^'"]*['"]|[^'"\n;]*))*)/g;
   let match: RegExpExecArray | null;
-  while ((match = regex.exec(source)) !== null) {
-    const unionPart = match[1];
-    const stringLiteral = /['"]([^'"]*)['"]/g;
-    let litMatch: RegExpExecArray | null;
-    while ((litMatch = stringLiteral.exec(unionPart)) !== null) {
-      values.add(litMatch[1]);
-    }
+  while ((match = typeAliasRegex.exec(source)) !== null) {
+    extractStringsFromUnion(match[1], values);
   }
+
+  // Pattern 2: property/param union types — prop: 'a' | 'b' | 'c'
+  const propUnionRegex = /\w+\s*[?]?\s*:\s*((?:['"][^'"]*['"])(?:\s*\|\s*(?:['"][^'"]*['"]|[^'"\n;{]*))*)/g;
+  while ((match = propUnionRegex.exec(source)) !== null) {
+    extractStringsFromUnion(match[1], values);
+  }
+
   return values;
+}
+
+function extractStringsFromUnion(unionPart: string, values: Set<string>): void {
+  const stringLiteral = /['"]([^'"]*)['"]/g;
+  let litMatch: RegExpExecArray | null;
+  while ((litMatch = stringLiteral.exec(unionPart)) !== null) {
+    values.add(litMatch[1]);
+  }
 }
 
 /**
@@ -116,6 +131,11 @@ const sniffer: SnifferExport = {
       if (ignoredSet.has(stringValue)) continue;
       if (unionValues.has(stringValue)) continue;
       if (caseValues.has(stringValue)) continue;
+
+      // Skip comparisons against method call return values: .getIsSorted() === 'asc'
+      const before = withoutComments.substring(Math.max(0, match.index - 30), match.index);
+      if (/\)\s*$/.test(before)) continue;
+
       if (!occurrences.has(stringValue)) {
         occurrences.set(stringValue, []);
       }

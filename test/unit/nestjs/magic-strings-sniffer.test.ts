@@ -182,6 +182,56 @@ describe('magic-strings-sniffer — case label exemption', () => {
 });
 
 // ---------------------------------------------------------------------------
+// V4 false positive fixes
+// ---------------------------------------------------------------------------
+describe('magic-strings-sniffer — V4 false positive fixes', () => {
+  it('does NOT flag method call return value comparisons like .getIsSorted() === "asc"', () => {
+    const content = [
+      `onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}`,
+      `onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}`,
+      `onClick(() => column.toggleSorting(column.getIsSorted() === 'asc'))`,
+    ].join('\n');
+    const detections = sniffer.detect(content, 'table.tsx', {});
+    assert.equal(detections.length, 0, 'Method call return value comparisons should not be flagged');
+  });
+
+  it('does NOT flag interface property union types like flowState: "idle" | "extracting"', () => {
+    const content = [
+      `interface Props {`,
+      `  flowState: 'idle' | 'extracting' | 'complete';`,
+      `}`,
+      `if (flowState === 'idle') { reset(); }`,
+      `if (flowState === 'idle') { clearUI(); }`,
+      `if (flowState === 'idle') { showDefault(); }`,
+    ].join('\n');
+    const detections = sniffer.detect(content, 'component.tsx', {});
+    assert.equal(detections.length, 0, 'Interface property union values should be exempt');
+  });
+
+  it('does NOT flag param union types like (mode: "edit" | "view") =>', () => {
+    const content = [
+      `function render(mode: 'edit' | 'view' | 'drag') {`,
+      `  if (mode === 'edit') { enableEditing(); }`,
+      `  if (mode === 'edit') { showToolbar(); }`,
+      `  if (mode === 'edit') { focusInput(); }`,
+      `}`,
+    ].join('\n');
+    const detections = sniffer.detect(content, 'renderer.tsx', {});
+    assert.equal(detections.length, 0, 'Parameter union type values should be exempt');
+  });
+
+  it('still flags cross-file strings not declared as union types', () => {
+    const content = [
+      `if (mode === 'edit') { enableEditing(); }`,
+      `if (mode === 'edit') { showToolbar(); }`,
+      `if (mode === 'edit') { focusInput(); }`,
+    ].join('\n');
+    const detections = sniffer.detect(content, 'renderer.tsx', {});
+    assert.ok(detections.length > 0, 'Strings without union declaration in file should still be flagged');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
 describe('magic-strings-sniffer — configuration', () => {

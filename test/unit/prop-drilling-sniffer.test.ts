@@ -170,6 +170,35 @@ describe('prop-drilling-sniffer — event handler auto-whitelisting', () => {
 });
 
 // ---------------------------------------------------------------------------
+// V4: Composition vs drilling detection
+// ---------------------------------------------------------------------------
+describe('prop-drilling-sniffer — composition vs drilling', () => {
+  it('does NOT flag layout composition distributing props to multiple children', () => {
+    const results = detect('composition-distribution.jsx');
+    const categoryHits = results.filter(
+      (d) => d.details?.componentName === 'CategoryCard',
+    );
+    assert.equal(categoryHits.length, 0, 'CategoryCard distributes props across 2 children — not drilling');
+  });
+
+  it('does NOT flag Radix UI composition distributing props across 3+ primitives', () => {
+    const results = detect('composition-distribution.jsx');
+    const popoverHits = results.filter(
+      (d) => d.details?.componentName === 'SourceSelectorPopover',
+    );
+    assert.equal(popoverHits.length, 0, 'SourceSelectorPopover distributes props across 3+ children — not drilling');
+  });
+
+  it('still flags single-child pass-through drilling', () => {
+    const results = detect('deep-drilling.jsx');
+    const headerHits = results.filter(
+      (d) => d.details?.componentName === 'Header',
+    );
+    assert.ok(headerHits.length >= 5, 'Header passes all 5 props to single child UserMenu — is drilling');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
 describe('prop-drilling-sniffer — configuration', () => {

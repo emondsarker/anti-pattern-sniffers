@@ -9,7 +9,7 @@
   "sniffers": {
     "prop-explosion": {
       "enabled": true,
-      "threshold": 10,
+      "threshold": 7,
       "severity": "warning"
     },
     "god-hook": {

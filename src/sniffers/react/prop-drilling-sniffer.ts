@@ -51,15 +51,37 @@ function buildSuggestion(componentName: string, propName: string): string {
  * inside a PascalCase JSX element (child component).
  */
 function countPassThroughOccurrences(strippedBody: string, propName: string): number {
-  // Match patterns like: propName={propName} inside JSX of a child component.
-  // The propName on the left is the JSX attribute, the one on the right is the value.
-  // We need word boundaries to avoid partial matches.
   const pattern = new RegExp(
     `\\b${escapeRegex(propName)}\\s*=\\s*\\{\\s*${escapeRegex(propName)}\\s*\\}`,
     'g',
   );
   const matches = strippedBody.match(pattern);
   return matches ? matches.length : 0;
+}
+
+/**
+ * Find which PascalCase child components receive a given pass-through prop.
+ * Returns the set of distinct child component names.
+ */
+function findReceivingChildren(strippedBody: string, propName: string): Set<string> {
+  const children = new Set<string>();
+  // Find <ComponentName ... propName={propName} by scanning backwards from each
+  // pass-through occurrence to find the opening JSX tag
+  const passThroughPattern = new RegExp(
+    `\\b${escapeRegex(propName)}\\s*=\\s*\\{\\s*${escapeRegex(propName)}\\s*\\}`,
+    'g',
+  );
+  let match: RegExpExecArray | null;
+  while ((match = passThroughPattern.exec(strippedBody)) !== null) {
+    // Scan backwards to find the opening < of the JSX element
+    const before = strippedBody.substring(Math.max(0, match.index - 500), match.index);
+    // Find the last opening JSX tag — <ComponentName or <Namespace.ComponentName
+    const tagMatch = before.match(/<([A-Z]\w*(?:\.[A-Z]\w*)*)(?:\s[^>]*)?$/);
+    if (tagMatch) {
+      children.add(tagMatch[1]);
+    }
+  }
+  return children;
 }
 
 /**
@@ -144,6 +166,34 @@ function detectPassThroughProps(
 
     // Only flag if the component has enough pass-through props to indicate drilling
     if (passThroughProps.length >= minPassThroughProps) {
+      // Check if pass-through props are distributed across multiple distinct children.
+      // If so, this is composition/distribution, not drilling.
+      const allReceivingChildren = new Set<string>();
+      for (const { propName } of passThroughProps) {
+        const children = findReceivingChildren(strippedBody, propName);
+        for (const child of children) {
+          allReceivingChildren.add(child);
+        }
+      }
+
+      // If props are distributed to 3+ distinct children, it's composition — skip.
+      // Also check per-child concentration: if no single child receives >= minPassThroughProps
+      // pass-through props, it's distribution — skip.
+      if (allReceivingChildren.size >= 3) continue;
+      if (allReceivingChildren.size >= 2) {
+        // For 2 children: check if either child receives enough pass-through props
+        // to constitute drilling (not just splitting props between two children)
+        const childPropCounts = new Map<string, number>();
+        for (const { propName } of passThroughProps) {
+          const children = findReceivingChildren(strippedBody, propName);
+          for (const child of children) {
+            childPropCounts.set(child, (childPropCounts.get(child) || 0) + 1);
+          }
+        }
+        const maxChildProps = Math.max(...childPropCounts.values());
+        if (maxChildProps < minPassThroughProps) continue;
+      }
+
       for (const { propName, passThroughCount } of passThroughProps) {
         detections.push({
           snifferName: 'prop-drilling',

@@ -1,7 +1,7 @@
 import React from 'react';
 
-// 10 props — should NOT be flagged at threshold 12.
-// Dialogs naturally need: open state, handlers, title, description, labels, variant, loading, focus.
+// 10 props — flagged at threshold 7.
+// Dialogs have groupable props: labels: {title, description, confirmLabel, cancelLabel}.
 const ConfirmationDialog = ({ isOpen, onClose, onConfirm, title, description, confirmLabel, cancelLabel, variant, isLoading, defaultFocus }) => {
   return (
     <div className={isOpen ? 'dialog open' : 'dialog'}>
