@@ -21,12 +21,12 @@ function detect(filename: string, config: Record<string, unknown> = {}) {
 // True positives (should detect)
 // ---------------------------------------------------------------------------
 describe('prop-explosion-sniffer — true positives', () => {
-  it('1. Detects component with 12 destructured props in many-props.jsx', () => {
+  it('1. Detects component with 13 destructured props in many-props.jsx', () => {
     const results = detect('many-props.jsx');
     const declaration = results.find(
-      (d) => d.details?.componentName === 'UserProfile' && (d.details?.propCount as number) === 12,
+      (d) => d.details?.componentName === 'UserProfile' && (d.details?.propCount as number) === 13,
     );
-    assert.ok(declaration, 'Expected a detection for UserProfile with 12 props');
+    assert.ok(declaration, 'Expected a detection for UserProfile with 13 props');
   });
 
   it('2. Detects spread + individual props in spread-props.jsx (8 named props) at threshold 7', () => {
@@ -96,8 +96,8 @@ describe('prop-explosion-sniffer — true negatives', () => {
     assert.equal(typeHit, undefined, 'Type alias should not be flagged');
   });
 
-  it('11. Does NOT flag component at exactly threshold (threshold=12 for 12-prop component)', () => {
-    const results = detect('many-props.jsx', { threshold: 12 });
+  it('11. Does NOT flag component at exactly threshold (threshold=13 for 13-prop component)', () => {
+    const results = detect('many-props.jsx', { threshold: 13 });
     const hit = results.find((d) => d.details?.componentName === 'UserProfile');
     assert.equal(hit, undefined, 'Component at exactly the threshold should not be flagged');
   });
@@ -125,7 +125,7 @@ describe('prop-explosion-sniffer — configuration', () => {
     assert.ok(results.length > 0, 'Expected detections at default threshold');
     const hit = results.find((d) => d.details?.componentName === 'UserProfile');
     assert.ok(hit, 'Expected UserProfile to be detected at default threshold');
-    assert.equal(hit!.details?.threshold, 10, 'Threshold in details should be 10');
+    assert.equal(hit!.details?.threshold, 12, 'Threshold in details should be 12');
   });
 });
 
@@ -196,6 +196,38 @@ describe('prop-explosion-sniffer — output shape', () => {
       hit!.suggestion.includes('UserProfile'),
       'Suggestion should contain the component name',
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ignoredProps configuration
+// ---------------------------------------------------------------------------
+describe('prop-explosion-sniffer — ignoredProps', () => {
+  it('26. Respects ignoredProps config — excluded props do not count toward total', () => {
+    const content = [
+      'const Big = ({ a, b, c, d, e, f, g, h, i, j, k, l, m, n }) => {',
+      '  return <div>{a}</div>;',
+      '};',
+    ].join('\n');
+    // 14 props total. Ignore 3 → 11 counted. 11 > 12 = false → not flagged.
+    const results = sniffer.detect(content, 'big.jsx', { ignoredProps: ['a', 'b', 'c'] });
+    assert.equal(results.length, 0, '14 props minus 3 ignored = 11, below threshold 12');
+  });
+
+  it('27. ignoredProps defaults to empty (all props counted)', () => {
+    const content = [
+      'const Big = ({ a, b, c, d, e, f, g, h, i, j, k, l, m }) => {',
+      '  return <div>{a}</div>;',
+      '};',
+    ].join('\n');
+    // 13 props, no ignoredProps → 13 > 12 → flagged
+    const results = sniffer.detect(content, 'big.jsx', {});
+    assert.ok(results.length > 0, '13 props should be flagged at default threshold 12');
+  });
+
+  it('28. Does NOT flag dialog component with 10 props at default threshold', () => {
+    const results = detect('dialog-component.jsx');
+    assert.equal(results.length, 0, '10 props should not trigger at threshold 12');
   });
 });
 

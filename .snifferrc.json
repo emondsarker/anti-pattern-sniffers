@@ -9,7 +9,7 @@
   "sniffers": {
     "prop-explosion": {
       "enabled": true,
-      "threshold": 10,
+      "threshold": 12,
       "severity": "warning"
     },
     "god-hook": {
@@ -23,7 +23,7 @@
       "enabled": true,
       "severity": "warning",
       "whitelistedProps": ["className", "style", "children", "key", "ref", "id", "data-testid", "onChange", "onClick", "onSubmit", "onClose", "onOpenChange"],
-      "minPassThroughProps": 3
+      "minPassThroughProps": 5
     }
   },
   "plugins": []

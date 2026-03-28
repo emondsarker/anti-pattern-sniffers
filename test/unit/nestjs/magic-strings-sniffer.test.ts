@@ -23,7 +23,7 @@ describe('magic-strings-sniffer — true positives', () => {
     );
     assert.ok(pendingDetection, 'should detect "pending_review"');
     const occurrences = (pendingDetection!.details as Record<string, unknown>).occurrences as number;
-    assert.ok(occurrences >= 4, `expected >= 4 occurrences, got ${occurrences}`);
+    assert.ok(occurrences >= 3, `expected >= 3 occurrences, got ${occurrences}`);
   });
 
   it('detects "express_shipping" repeated 3+ times', () => {
@@ -101,6 +101,12 @@ describe('magic-strings-sniffer — true negatives', () => {
     assert.equal(detections.length, 0, 'Strings confined to switch blocks should not be flagged');
   });
 
+  it('does NOT flag case-label-exempt.ts (strings in both case and conditionals)', () => {
+    const content = loadFixture('case-label-exempt.ts');
+    const detections = sniffer.detect(content, 'case-label-exempt.ts', {});
+    assert.equal(detections.length, 0, 'Strings appearing as case labels should be exempt');
+  });
+
   it('does NOT flag strings in ignoredStrings config', () => {
     const content = [
       `if (filter === 'all') { showAll(); }`,
@@ -124,10 +130,10 @@ describe('magic-strings-sniffer — true negatives', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Mixed switch/non-switch usage
+// Case label exemption
 // ---------------------------------------------------------------------------
-describe('magic-strings-sniffer — mixed switch usage', () => {
-  it('still detects strings used both inside and outside switch blocks', () => {
+describe('magic-strings-sniffer — case label exemption', () => {
+  it('does NOT flag strings that appear as case labels even when used in comparisons', () => {
     const content = [
       `if (status === 'pending') { notify(); }`,
       `if (status === 'pending') { log(); }`,
@@ -136,7 +142,42 @@ describe('magic-strings-sniffer — mixed switch usage', () => {
       `}`,
     ].join('\n');
     const detections = sniffer.detect(content, 'test.ts', {});
-    assert.ok(detections.length > 0, 'Strings not fully confined to switch should still be flagged');
+    assert.equal(detections.length, 0, 'Strings appearing as case labels should be exempt');
+  });
+
+  it('does NOT flag discriminated union strings used in both case and conditionals', () => {
+    const content = [
+      `switch (mode) {`,
+      `  case 'edit': return renderEdit();`,
+      `  case 'view': return renderView();`,
+      `  case 'drag': return renderDrag();`,
+      `}`,
+      `if (mode === 'edit') { enableToolbar(); }`,
+      `if (mode === 'edit') { showCursor(); }`,
+      `if (mode === 'edit') { focusInput(); }`,
+    ].join('\n');
+    const detections = sniffer.detect(content, 'test.ts', {});
+    assert.equal(detections.length, 0, 'Case label discriminators should be exempt');
+  });
+
+  it('does NOT flag default ignored strings like "all" and "none"', () => {
+    const content = [
+      `if (filter === 'all') { showAll(); }`,
+      `if (filter === 'all') { resetPage(); }`,
+      `if (filter === 'all') { clearSearch(); }`,
+    ].join('\n');
+    const detections = sniffer.detect(content, 'test.ts', {});
+    assert.equal(detections.length, 0, 'Default ignored strings should not be flagged');
+  });
+
+  it('still detects strings with 3+ conditional occurrences and no case label', () => {
+    const content = [
+      `if (instruction.status === 'ACTIVE') { enable(); }`,
+      `if (instruction.status === 'ACTIVE') { highlight(); }`,
+      `if (instruction.status === 'ACTIVE') { log(); }`,
+    ].join('\n');
+    const detections = sniffer.detect(content, 'test.ts', {});
+    assert.ok(detections.length > 0, 'Strings without case labels should still be flagged');
   });
 });
 

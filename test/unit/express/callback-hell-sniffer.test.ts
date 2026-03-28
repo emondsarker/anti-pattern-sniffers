@@ -177,6 +177,38 @@ describe('callback-hell-sniffer — true negatives', () => {
 });
 
 // ---------------------------------------------------------------------------
+// React file skipping
+// ---------------------------------------------------------------------------
+describe('callback-hell-sniffer — React file skipping', () => {
+  const deepNesting = [
+    'const handler = (cb) => {',
+    '  doA((err) => {',
+    '    doB((err2) => {',
+    '      doC((err3) => {',
+    '        cb(err3);',
+    '      });',
+    '    });',
+    '  });',
+    '};',
+  ].join('\n');
+
+  it('skips .tsx files entirely', () => {
+    const detections = sniffer.detect(deepNesting, 'Component.tsx', {});
+    assert.equal(detections.length, 0, '.tsx files should be skipped');
+  });
+
+  it('skips .jsx files entirely', () => {
+    const detections = sniffer.detect(deepNesting, 'Component.jsx', {});
+    assert.equal(detections.length, 0, '.jsx files should be skipped');
+  });
+
+  it('still detects same content in .ts files', () => {
+    const detections = sniffer.detect(deepNesting, 'handler.ts', {});
+    assert.ok(detections.length > 0, '.ts files should still be analyzed');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // True positives — new fixtures
 // ---------------------------------------------------------------------------
 describe('callback-hell-sniffer — true positives (new patterns)', () => {

@@ -36,9 +36,10 @@ describe('CLI integration', () => {
 
   it('2. --version flag exits 0 and prints version number', async () => {
     const { stdout } = await exec('node', [BIN, '--version']);
+    const pkg = JSON.parse(readFileSync(join(__dirname, '..', '..', '..', 'package.json'), 'utf-8'));
     assert.ok(
-      stdout.includes('0.2.0'),
-      `Expected stdout to contain "0.2.0", got: ${stdout.trim()}`,
+      stdout.includes(pkg.version),
+      `Expected stdout to contain "${pkg.version}", got: ${stdout.trim()}`,
     );
   });
 

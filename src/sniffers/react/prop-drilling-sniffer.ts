@@ -24,6 +24,12 @@ const DEFAULT_WHITELISTED_PROPS = [
   'onSubmit',
   'onClose',
   'onOpenChange',
+  'isOpen',
+  'isLoading',
+  'disabled',
+  'loading',
+  'open',
+  'visible',
 ];
 
 /**
@@ -124,6 +130,8 @@ function detectPassThroughProps(
 
     for (const propName of propNames) {
       if (whitelistSet.has(propName)) continue;
+      // Auto-whitelist event handler props (on[A-Z]* pattern)
+      if (/^on[A-Z]/.test(propName)) continue;
 
       const totalOccurrences = countAllOccurrences(strippedBody, propName);
       const passThroughCount = countPassThroughOccurrences(strippedBody, propName);
@@ -171,7 +179,7 @@ const sniffer: SnifferExport = {
     defaultConfig: {
       severity: 'warning',
       whitelistedProps: DEFAULT_WHITELISTED_PROPS,
-      minPassThroughProps: 3,
+      minPassThroughProps: 5,
     },
   },
 
@@ -185,7 +193,7 @@ const sniffer: SnifferExport = {
       ? (config.whitelistedProps as string[])
       : DEFAULT_WHITELISTED_PROPS;
     const minPassThroughProps: number =
-      typeof config.minPassThroughProps === 'number' ? config.minPassThroughProps : 3;
+      typeof config.minPassThroughProps === 'number' ? config.minPassThroughProps : 5;
 
     return detectPassThroughProps(fileContent, filePath, whitelistedProps, severity, minPassThroughProps);
   },

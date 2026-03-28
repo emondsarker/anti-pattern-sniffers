@@ -1,6 +1,6 @@
 import React from 'react';
 
-const UserProfile = ({ firstName, lastName, email, phone, avatar, address, role, permissions, isActive, onUpdate, bio, joinDate }) => {
+const UserProfile = ({ firstName, lastName, email, phone, avatar, address, role, permissions, isActive, onUpdate, bio, joinDate, department }) => {
   return (
     <div>
       <img src={avatar} alt={firstName} />

@@ -145,6 +145,12 @@ const sniffer: SnifferExport = {
     const severity: Severity =
       (config.severity as Severity) || 'warning';
 
+    // This sniffer targets Express/Node.js callback patterns.
+    // React/JSX files have fundamentally different callback idioms.
+    if (filePath.endsWith('.tsx') || filePath.endsWith('.jsx')) {
+      return [];
+    }
+
     const cleaned = stripCommentsAndStrings(fileContent);
 
     return findDeepCallbacks(cleaned, fileContent, filePath, maxDepth, severity);

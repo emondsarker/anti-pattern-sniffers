@@ -32,6 +32,7 @@ function detectDestructuredProps(
   filePath: string,
   threshold: number,
   severity: Severity,
+  ignoredProps: string[] = [],
 ): Detection[] {
   const detections: Detection[] = [];
 
@@ -51,7 +52,11 @@ function detectDestructuredProps(
     if (!destructuredMatch) continue;
 
     const propsString = destructuredMatch[1];
-    const propNames = parseDestructuredProps(propsString);
+    const allPropNames = parseDestructuredProps(propsString);
+    const ignoredSet = new Set(ignoredProps);
+    const propNames = ignoredSet.size > 0
+      ? allPropNames.filter(p => !ignoredSet.has(p))
+      : allPropNames;
     const propCount = propNames.length;
 
     if (propCount > threshold) {
@@ -91,7 +96,7 @@ const propExplosionSniffer: SnifferExport = {
     category: 'props',
     severity: 'warning',
     defaultConfig: {
-      threshold: 10,
+      threshold: 12,
       severity: 'warning',
     },
   },
@@ -102,9 +107,12 @@ const propExplosionSniffer: SnifferExport = {
     config: Record<string, unknown>,
   ): Detection[] {
     const threshold =
-      typeof config.threshold === 'number' ? config.threshold : 10;
+      typeof config.threshold === 'number' ? config.threshold : 12;
     const severity: Severity =
       (config.severity as Severity) || 'warning';
+    const ignoredProps: string[] = Array.isArray(config.ignoredProps)
+      ? (config.ignoredProps as string[])
+      : [];
 
     // Strip comments and strings so we don't get false positives
     const cleaned = stripCommentsAndStrings(fileContent);
@@ -115,6 +123,7 @@ const propExplosionSniffer: SnifferExport = {
       filePath,
       threshold,
       severity,
+      ignoredProps,
     );
   },
 };

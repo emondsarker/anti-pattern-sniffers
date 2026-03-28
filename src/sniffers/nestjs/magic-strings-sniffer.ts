@@ -70,7 +70,7 @@ const sniffer: SnifferExport = {
     severity: 'warning',
     defaultConfig: {
       minOccurrences: 3,
-      ignoredStrings: [] as string[],
+      ignoredStrings: ['all', 'none'] as string[],
     },
   },
 
@@ -83,9 +83,10 @@ const sniffer: SnifferExport = {
       typeof config.minOccurrences === 'number' ? config.minOccurrences : 3;
     const severity: Severity =
       (config.severity as Severity) || 'warning';
+    const DEFAULT_IGNORED = ['all', 'none'];
     const ignoredStrings: string[] = Array.isArray(config.ignoredStrings)
       ? (config.ignoredStrings as string[])
-      : [];
+      : DEFAULT_IGNORED;
     const ignoredSet = new Set(ignoredStrings);
 
     // We intentionally do NOT strip strings here — we need to find them.
@@ -97,6 +98,14 @@ const sniffer: SnifferExport = {
     // Extract TypeScript union literal type values to exempt them
     const unionValues = extractUnionLiteralValues(withoutComments);
 
+    // Collect all strings used as case labels — these are discriminated values
+    const caseValues = new Set<string>();
+    const caseRegex = /case\s+(['"])([^'"]+)\1/g;
+    let caseMatch: RegExpExecArray | null;
+    while ((caseMatch = caseRegex.exec(withoutComments)) !== null) {
+      caseValues.add(caseMatch[2]);
+    }
+
     // Collect occurrences of each string in conditional contexts
     const occurrences = new Map<string, number[]>();
     const regex = new RegExp(CONDITIONAL_STRING.source, CONDITIONAL_STRING.flags);
@@ -106,6 +115,7 @@ const sniffer: SnifferExport = {
       const stringValue = match[2];
       if (ignoredSet.has(stringValue)) continue;
       if (unionValues.has(stringValue)) continue;
+      if (caseValues.has(stringValue)) continue;
       if (!occurrences.has(stringValue)) {
         occurrences.set(stringValue, []);
       }

@@ -21,28 +21,32 @@ function detect(filename: string, config: Record<string, unknown> = {}) {
 // True positives (should detect)
 // ---------------------------------------------------------------------------
 describe('prop-drilling-sniffer — true positives', () => {
-  it('1. Detects pass-through props in Wrapper of deep-drilling.jsx (theme, locale, userId forwarded to Header)', () => {
+  it('1. Detects pass-through props in Wrapper of deep-drilling.jsx', () => {
     const results = detect('deep-drilling.jsx');
     const wrapperHits = results.filter(
       (d) => d.details?.componentName === 'Wrapper',
     );
-    assert.ok(wrapperHits.length >= 3, `Expected at least 3 detections for Wrapper, got ${wrapperHits.length}`);
+    assert.ok(wrapperHits.length >= 5, `Expected at least 5 detections for Wrapper, got ${wrapperHits.length}`);
     const flaggedProps = wrapperHits.map((d) => d.details?.propName);
     assert.ok(flaggedProps.includes('theme'), 'Expected theme to be flagged');
     assert.ok(flaggedProps.includes('locale'), 'Expected locale to be flagged');
     assert.ok(flaggedProps.includes('userId'), 'Expected userId to be flagged');
+    assert.ok(flaggedProps.includes('permissions'), 'Expected permissions to be flagged');
+    assert.ok(flaggedProps.includes('notifications'), 'Expected notifications to be flagged');
   });
 
-  it('2. Detects pass-through props in Header of deep-drilling.jsx (theme, locale, userId forwarded to UserMenu)', () => {
+  it('2. Detects pass-through props in Header of deep-drilling.jsx', () => {
     const results = detect('deep-drilling.jsx');
     const headerHits = results.filter(
       (d) => d.details?.componentName === 'Header',
     );
-    assert.ok(headerHits.length >= 3, `Expected at least 3 detections for Header, got ${headerHits.length}`);
+    assert.ok(headerHits.length >= 5, `Expected at least 5 detections for Header, got ${headerHits.length}`);
     const flaggedProps = headerHits.map((d) => d.details?.propName);
     assert.ok(flaggedProps.includes('theme'), 'Expected theme to be flagged');
     assert.ok(flaggedProps.includes('locale'), 'Expected locale to be flagged');
     assert.ok(flaggedProps.includes('userId'), 'Expected userId to be flagged');
+    assert.ok(flaggedProps.includes('permissions'), 'Expected permissions to be flagged');
+    assert.ok(flaggedProps.includes('notifications'), 'Expected notifications to be flagged');
   });
 
   it('3. Detects multiple pass-through props in a single component', () => {
@@ -50,8 +54,7 @@ describe('prop-drilling-sniffer — true positives', () => {
     const wrapperHits = results.filter(
       (d) => d.details?.componentName === 'Wrapper',
     );
-    // Wrapper passes theme, locale, userId through — all three should be detected
-    assert.ok(wrapperHits.length >= 3, `Expected at least 3 pass-through detections, got ${wrapperHits.length}`);
+    assert.ok(wrapperHits.length >= 5, `Expected at least 5 pass-through detections, got ${wrapperHits.length}`);
   });
 });
 
@@ -133,12 +136,47 @@ describe('prop-drilling-sniffer — minPassThroughProps threshold', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Event handler auto-whitelisting
+// ---------------------------------------------------------------------------
+describe('prop-drilling-sniffer — event handler auto-whitelisting', () => {
+  it('auto-whitelists on[A-Z] event handler props', () => {
+    const results = detect('event-handler-passthrough.jsx');
+    assert.equal(results.length, 0, 'Components with only event handler + few data pass-throughs should not flag');
+  });
+
+  it('flags component with 5+ non-handler data pass-through props', () => {
+    const results = detect('many-data-passthrough.jsx');
+    const hits = results.filter(
+      (d) => d.details?.componentName === 'ComplianceContent',
+    );
+    assert.ok(hits.length >= 5, `Expected at least 5 detections for ComplianceContent, got ${hits.length}`);
+  });
+
+  it('does NOT flag isOpen, isLoading, disabled as pass-through', () => {
+    const content = [
+      'const ModalWrapper = ({ isOpen, isLoading, disabled, title, description, confirmText, cancelText, variant }) => {',
+      '  return <BaseModal isOpen={isOpen} isLoading={isLoading} disabled={disabled}',
+      '    title={title} description={description} confirmText={confirmText}',
+      '    cancelText={cancelText} variant={variant} />;',
+      '};',
+    ].join('\n');
+    const results = sniffer.detect(content, 'modal-wrapper.jsx', {});
+    // isOpen, isLoading, disabled are whitelisted — only 5 data props remain, at threshold 5 → flagged
+    const flaggedProps = results.map((d) => d.details?.propName);
+    assert.ok(!flaggedProps.includes('isOpen'), 'isOpen should be auto-whitelisted');
+    assert.ok(!flaggedProps.includes('isLoading'), 'isLoading should be auto-whitelisted');
+    assert.ok(!flaggedProps.includes('disabled'), 'disabled should be auto-whitelisted');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
 describe('prop-drilling-sniffer — configuration', () => {
   it('8. Respects custom whitelistedProps — adding theme to whitelist prevents it from being flagged', () => {
     const results = detect('deep-drilling.jsx', {
       whitelistedProps: ['className', 'style', 'children', 'key', 'ref', 'id', 'data-testid', 'theme'],
+      minPassThroughProps: 1,
     });
     const themeFlagged = results.find((d) => d.details?.propName === 'theme');
     assert.equal(themeFlagged, undefined, 'theme should not be flagged when it is whitelisted');
@@ -151,7 +189,7 @@ describe('prop-drilling-sniffer — configuration', () => {
   });
 
   it('10. With empty whitelist, flags className/style pass-through in layout-component.jsx', () => {
-    const results = detect('layout-component.jsx', { whitelistedProps: [] });
+    const results = detect('layout-component.jsx', { whitelistedProps: [], minPassThroughProps: 3 });
     assert.ok(results.length > 0, 'Expected detections when whitelist is empty');
     const propNames = results.map((d) => d.details?.propName);
     assert.ok(propNames.includes('className'), 'className should be flagged with empty whitelist');

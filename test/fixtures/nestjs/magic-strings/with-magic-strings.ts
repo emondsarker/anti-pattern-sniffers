@@ -30,9 +30,9 @@ export class OrderService {
 
   getStatusLabel(status: string) {
     switch (status) {
-      case 'pending_review': return 'Pending Review';
       case 'approved': return 'Approved';
       case 'rejected': return 'Rejected';
+      case 'cancelled': return 'Cancelled';
     }
   }
 }
