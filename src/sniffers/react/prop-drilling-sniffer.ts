@@ -19,6 +19,11 @@ const DEFAULT_WHITELISTED_PROPS = [
   'ref',
   'id',
   'data-testid',
+  'onChange',
+  'onClick',
+  'onSubmit',
+  'onClose',
+  'onOpenChange',
 ];
 
 /**
@@ -78,6 +83,7 @@ function detectPassThroughProps(
   filePath: string,
   whitelistedProps: string[],
   severity: Severity,
+  minPassThroughProps: number,
 ): Detection[] {
   const detections: Detection[] = [];
   const whitelistSet = new Set(whitelistedProps);
@@ -113,24 +119,24 @@ function detectPassThroughProps(
 
     const line = getLineNumber(fileContent, match.index);
 
+    // First pass: collect all pass-through props for this component
+    const passThroughProps: Array<{ propName: string; passThroughCount: number }> = [];
+
     for (const propName of propNames) {
-      // Skip whitelisted props
       if (whitelistSet.has(propName)) continue;
 
-      // Count all identifier occurrences in the body
       const totalOccurrences = countAllOccurrences(strippedBody, propName);
-
-      // Count pass-through occurrences (propName={propName} patterns)
       const passThroughCount = countPassThroughOccurrences(strippedBody, propName);
-
-      // Each pass-through pattern like `propName={propName}` contains 2 occurrences
-      // of the identifier: the attribute name and the value.
       const occurrencesAccountedByPassThrough = passThroughCount * 2;
 
-      // A prop is pass-through only if:
-      // 1. There is at least one pass-through usage
-      // 2. All occurrences of the identifier are accounted for by pass-through patterns
       if (passThroughCount > 0 && totalOccurrences === occurrencesAccountedByPassThrough) {
+        passThroughProps.push({ propName, passThroughCount });
+      }
+    }
+
+    // Only flag if the component has enough pass-through props to indicate drilling
+    if (passThroughProps.length >= minPassThroughProps) {
+      for (const { propName, passThroughCount } of passThroughProps) {
         detections.push({
           snifferName: 'prop-drilling',
           filePath,
@@ -165,6 +171,7 @@ const sniffer: SnifferExport = {
     defaultConfig: {
       severity: 'warning',
       whitelistedProps: DEFAULT_WHITELISTED_PROPS,
+      minPassThroughProps: 3,
     },
   },
 
@@ -177,8 +184,10 @@ const sniffer: SnifferExport = {
     const whitelistedProps: string[] = Array.isArray(config.whitelistedProps)
       ? (config.whitelistedProps as string[])
       : DEFAULT_WHITELISTED_PROPS;
+    const minPassThroughProps: number =
+      typeof config.minPassThroughProps === 'number' ? config.minPassThroughProps : 3;
 
-    return detectPassThroughProps(fileContent, filePath, whitelistedProps, severity);
+    return detectPassThroughProps(fileContent, filePath, whitelistedProps, severity, minPassThroughProps);
   },
 };
 

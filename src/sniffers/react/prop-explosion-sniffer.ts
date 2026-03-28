@@ -2,8 +2,6 @@ import type { Detection, SnifferExport, Severity } from '../sniffer-interface.js
 import {
   FUNCTIONAL_COMPONENT_DECL,
   DESTRUCTURED_PROPS,
-  JSX_OPENING_TAG,
-  JSX_ATTRIBUTE,
 } from './regex-helpers.js';
 import {
   stripCommentsAndStrings,
@@ -82,72 +80,6 @@ function detectDestructuredProps(
   return detections;
 }
 
-/**
- * Detect JSX usage sites where a PascalCase component receives too many attributes.
- *
- * Counts non-spread attributes on JSX opening tags. Spread attributes are excluded
- * because they represent an unknown number of props.
- */
-function detectJsxAttributeExplosion(
-  cleaned: string,
-  originalSource: string,
-  filePath: string,
-  threshold: number,
-  severity: Severity,
-): Detection[] {
-  const detections: Detection[] = [];
-
-  const jsxRegex = new RegExp(JSX_OPENING_TAG.source, JSX_OPENING_TAG.flags);
-  let match: RegExpExecArray | null;
-
-  while ((match = jsxRegex.exec(cleaned)) !== null) {
-    const componentName = match[1];
-    const attributesText = match[2];
-
-    // Only look at PascalCase component names (skip HTML elements)
-    if (!componentName || !/^[A-Z]/.test(componentName)) continue;
-
-    // Skip self-referencing / no attributes
-    if (!attributesText || !attributesText.trim()) continue;
-
-    // Count non-spread attributes
-    const attrRegex = new RegExp(JSX_ATTRIBUTE.source, JSX_ATTRIBUTE.flags);
-    const propNames: string[] = [];
-    let attrMatch: RegExpExecArray | null;
-
-    while ((attrMatch = attrRegex.exec(attributesText)) !== null) {
-      if (attrMatch[1]) {
-        propNames.push(attrMatch[1]);
-      }
-    }
-
-    const propCount = propNames.length;
-
-    if (propCount > threshold) {
-      const line = getLineNumber(originalSource, match.index);
-      const column = getColumnNumber(originalSource, match.index);
-
-      detections.push({
-        snifferName: 'prop-explosion',
-        filePath,
-        line,
-        column,
-        message: `Component "${componentName}" has ${propCount} props (threshold: ${threshold})`,
-        severity,
-        suggestion: buildSuggestion(componentName),
-        details: {
-          componentName,
-          propCount,
-          propNames,
-          threshold,
-        },
-      });
-    }
-  }
-
-  return detections;
-}
-
 const propExplosionSniffer: SnifferExport = {
   name: 'prop-explosion',
   description:
@@ -159,7 +91,7 @@ const propExplosionSniffer: SnifferExport = {
     category: 'props',
     severity: 'warning',
     defaultConfig: {
-      threshold: 7,
+      threshold: 10,
       severity: 'warning',
     },
   },
@@ -170,30 +102,20 @@ const propExplosionSniffer: SnifferExport = {
     config: Record<string, unknown>,
   ): Detection[] {
     const threshold =
-      typeof config.threshold === 'number' ? config.threshold : 7;
+      typeof config.threshold === 'number' ? config.threshold : 10;
     const severity: Severity =
       (config.severity as Severity) || 'warning';
 
     // Strip comments and strings so we don't get false positives
     const cleaned = stripCommentsAndStrings(fileContent);
 
-    const declarationDetections = detectDestructuredProps(
+    return detectDestructuredProps(
       cleaned,
       fileContent,
       filePath,
       threshold,
       severity,
     );
-
-    const jsxDetections = detectJsxAttributeExplosion(
-      cleaned,
-      fileContent,
-      filePath,
-      threshold,
-      severity,
-    );
-
-    return [...declarationDetections, ...jsxDetections];
   },
 };
 

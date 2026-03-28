@@ -94,6 +94,45 @@ describe('prop-drilling-sniffer — true negatives', () => {
 });
 
 // ---------------------------------------------------------------------------
+// minPassThroughProps threshold
+// ---------------------------------------------------------------------------
+describe('prop-drilling-sniffer — minPassThroughProps threshold', () => {
+  it('does NOT flag component with only 2 pass-through props (below default threshold)', () => {
+    const results = detect('many-pass-through.jsx');
+    const smallWrapperHits = results.filter(
+      (d) => d.details?.componentName === 'SmallWrapper',
+    );
+    assert.equal(smallWrapperHits.length, 0, 'SmallWrapper has only 2 pass-through props');
+  });
+
+  it('flags component with 6 pass-through props (above default threshold)', () => {
+    const results = detect('many-pass-through.jsx');
+    const hits = results.filter(
+      (d) => d.details?.componentName === 'SettingsPanel',
+    );
+    assert.ok(hits.length >= 5, `Expected at least 5 detections for SettingsPanel, got ${hits.length}`);
+  });
+
+  it('respects custom minPassThroughProps=1 (flags even single pass-through)', () => {
+    const results = detect('many-pass-through.jsx', { minPassThroughProps: 1 });
+    const smallWrapperHits = results.filter(
+      (d) => d.details?.componentName === 'SmallWrapper',
+    );
+    assert.ok(smallWrapperHits.length > 0, 'SmallWrapper should be flagged with threshold 1');
+  });
+
+  it('does NOT flag dialog wrapper (2 forwarded props, below threshold)', () => {
+    const results = detect('dialog-wrapper.jsx');
+    assert.equal(results.length, 0, 'Dialog wrapper with 2 pass-through props should not flag');
+  });
+
+  it('does NOT flag adapter component that mixes pass-through with local usage', () => {
+    const results = detect('adapter-component.jsx');
+    assert.equal(results.length, 0, 'Adapter with mixed usage should not flag');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
 describe('prop-drilling-sniffer — configuration', () => {

@@ -88,6 +88,56 @@ describe('magic-strings-sniffer — true negatives', () => {
     const detections = sniffer.detect(content, 'test.ts', {});
     assert.equal(detections.length, 0, '2 occurrences should not trigger at threshold 3');
   });
+
+  it('does NOT flag strings declared in TypeScript union literal types', () => {
+    const content = loadFixture('with-union-types.ts');
+    const detections = sniffer.detect(content, 'with-union-types.ts', {});
+    assert.equal(detections.length, 0, 'Union type discriminator strings should not be flagged');
+  });
+
+  it('does NOT flag strings that appear only within switch blocks', () => {
+    const content = loadFixture('switch-only-strings.ts');
+    const detections = sniffer.detect(content, 'switch-only-strings.ts', {});
+    assert.equal(detections.length, 0, 'Strings confined to switch blocks should not be flagged');
+  });
+
+  it('does NOT flag strings in ignoredStrings config', () => {
+    const content = [
+      `if (filter === 'all') { showAll(); }`,
+      `if (filter === 'all') { resetPage(); }`,
+      `if (filter === 'all') { clearSearch(); }`,
+    ].join('\n');
+    const detections = sniffer.detect(content, 'test.ts', { ignoredStrings: ['all'] });
+    assert.equal(detections.length, 0, 'Ignored strings should not be flagged');
+  });
+
+  it('does NOT flag typed mode comparisons with union type in same file', () => {
+    const content = [
+      `type Mode = 'edit' | 'drag';`,
+      `if (mode === 'edit') { enableEditing(); }`,
+      `if (mode === 'edit') { showToolbar(); }`,
+      `if (mode === 'edit') { focusInput(); }`,
+    ].join('\n');
+    const detections = sniffer.detect(content, 'test.ts', {});
+    assert.equal(detections.length, 0, 'Strings from union type declarations should be exempt');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Mixed switch/non-switch usage
+// ---------------------------------------------------------------------------
+describe('magic-strings-sniffer — mixed switch usage', () => {
+  it('still detects strings used both inside and outside switch blocks', () => {
+    const content = [
+      `if (status === 'pending') { notify(); }`,
+      `if (status === 'pending') { log(); }`,
+      `switch (status) {`,
+      `  case 'pending': return 'waiting';`,
+      `}`,
+    ].join('\n');
+    const detections = sniffer.detect(content, 'test.ts', {});
+    assert.ok(detections.length > 0, 'Strings not fully confined to switch should still be flagged');
+  });
 });
 
 // ---------------------------------------------------------------------------

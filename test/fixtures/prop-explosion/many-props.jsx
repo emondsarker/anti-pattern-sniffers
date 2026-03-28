@@ -1,6 +1,6 @@
 import React from 'react';
 
-const UserProfile = ({ firstName, lastName, email, phone, avatar, address, role, permissions, isActive, onUpdate }) => {
+const UserProfile = ({ firstName, lastName, email, phone, avatar, address, role, permissions, isActive, onUpdate, bio, joinDate }) => {
   return (
     <div>
       <img src={avatar} alt={firstName} />
@@ -8,8 +8,10 @@ const UserProfile = ({ firstName, lastName, email, phone, avatar, address, role,
       <p>{email}</p>
       <p>{phone}</p>
       <p>{address}</p>
+      <p>{bio}</p>
       <span>{role}</span>
       <span>{isActive ? 'Active' : 'Inactive'}</span>
+      <time>{joinDate}</time>
       <button onClick={onUpdate}>Update</button>
     </div>
   );

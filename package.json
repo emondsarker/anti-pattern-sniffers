@@ -1,6 +1,6 @@
 {
   "name": "anti-pattern-sniffer",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Zero-dependency CLI that detects framework anti-patterns via regex-based heuristics",
   "main": "dist/src/core/orchestrator.js",
   "types": "dist/src/core/orchestrator.d.ts",

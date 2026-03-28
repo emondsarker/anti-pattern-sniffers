@@ -6,6 +6,34 @@ import {
 } from '../shared/regex-helpers.js';
 
 /**
+ * Check whether the callback at `matchIndex` is exempt from nesting depth
+ * counting. We look backwards from the match to see if the callback is
+ * inside a React hook, array method, or state updater — these are normal
+ * patterns, not callback hell.
+ */
+function isExemptCallback(cleaned: string, matchIndex: number): boolean {
+  const lookbackStart = Math.max(0, matchIndex - 120);
+  const preceding = cleaned.substring(lookbackStart, matchIndex);
+
+  // React hook wrappers: useEffect(() => {, useCallback(async () => {, etc.
+  if (/(?:useEffect|useCallback|useMemo|useLayoutEffect)\s*\(\s*(?:async\s+)?(?:\([^)]*\)\s*|[a-zA-Z_$]\w*\s*)?$/.test(preceding)) {
+    return true;
+  }
+
+  // Array method callbacks: .map((x) => {, .forEach(function(x) {, etc.
+  if (/\.(?:map|forEach|filter|some|find|reduce|every|flatMap|sort|findIndex)\s*\(\s*(?:async\s+)?(?:\([^)]*\)\s*|[a-zA-Z_$]\w*\s*)?$/.test(preceding)) {
+    return true;
+  }
+
+  // State updater callbacks: setState(prev => {, setCount((prev) => {, etc.
+  if (/(?:setState|set[A-Z]\w*)\s*\(\s*(?:\([^)]*\)\s*|[a-zA-Z_$]\w*\s*)?$/.test(preceding)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Track nesting depth of callback patterns and flag locations where
  * the depth exceeds the configured threshold.
  *
@@ -32,7 +60,9 @@ function findDeepCallbacks(
   while ((cbMatch = CALLBACK_OPEN.exec(cleaned)) !== null) {
     // The brace is at the end of the match
     const bracePos = cbMatch.index + cbMatch[0].length - 1;
-    callbackPositions.push(bracePos);
+    if (!isExemptCallback(cleaned, cbMatch.index)) {
+      callbackPositions.push(bracePos);
+    }
   }
 
   if (callbackPositions.length === 0) return detections;

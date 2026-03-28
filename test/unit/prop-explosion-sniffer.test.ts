@@ -21,33 +21,21 @@ function detect(filename: string, config: Record<string, unknown> = {}) {
 // True positives (should detect)
 // ---------------------------------------------------------------------------
 describe('prop-explosion-sniffer — true positives', () => {
-  it('1. Detects component with 10 destructured props in many-props.jsx', () => {
+  it('1. Detects component with 12 destructured props in many-props.jsx', () => {
     const results = detect('many-props.jsx');
     const declaration = results.find(
-      (d) => d.details?.componentName === 'UserProfile' && (d.details?.propCount as number) === 10,
+      (d) => d.details?.componentName === 'UserProfile' && (d.details?.propCount as number) === 12,
     );
-    assert.ok(declaration, 'Expected a detection for UserProfile with 10 props');
+    assert.ok(declaration, 'Expected a detection for UserProfile with 12 props');
   });
 
-  it('2. Detects spread + individual props in spread-props.jsx (8 named props)', () => {
-    const results = detect('spread-props.jsx');
+  it('2. Detects spread + individual props in spread-props.jsx (8 named props) at threshold 7', () => {
+    const results = detect('spread-props.jsx', { threshold: 7 });
     const declaration = results.find(
       (d) => d.details?.componentName === 'EnhancedInput',
     );
     assert.ok(declaration, 'Expected a detection for EnhancedInput');
     assert.equal(declaration!.details?.propCount, 8);
-  });
-
-  it('3. Detects JSX elements with many attributes in jsx-attributes.jsx', () => {
-    const results = detect('jsx-attributes.jsx');
-    const jsxHit = results.find(
-      (d) => d.details?.componentName === 'DataGrid',
-    );
-    assert.ok(jsxHit, 'Expected a detection for DataGrid JSX usage');
-    assert.ok(
-      (jsxHit!.details?.propCount as number) > 7,
-      'Expected propCount to exceed the default threshold',
-    );
   });
 
   it('4. Detects component with default values in edge-cases.jsx (WithDefaults) at lowered threshold', () => {
@@ -61,21 +49,21 @@ describe('prop-explosion-sniffer — true positives', () => {
   });
 
   it('5. Detects React.memo wrapped component in edge-cases.jsx (MemoComponent)', () => {
-    const results = detect('edge-cases.jsx');
+    const results = detect('edge-cases.jsx', { threshold: 7 });
     const hit = results.find((d) => d.details?.componentName === 'MemoComponent');
     assert.ok(hit, 'Expected a detection for MemoComponent');
     assert.equal(hit!.details?.propCount, 8);
   });
 
   it('6. Detects React.forwardRef component in edge-cases.jsx (ForwardRefComponent)', () => {
-    const results = detect('edge-cases.jsx');
+    const results = detect('edge-cases.jsx', { threshold: 7 });
     const hit = results.find((d) => d.details?.componentName === 'ForwardRefComponent');
     assert.ok(hit, 'Expected a detection for ForwardRefComponent');
     assert.equal(hit!.details?.propCount, 8);
   });
 
   it('7. Detects TypeScript component in typescript.tsx', () => {
-    const results = detect('typescript.tsx');
+    const results = detect('typescript.tsx', { threshold: 9 });
     const hit = results.find((d) => d.details?.componentName === 'UserProfile');
     assert.ok(hit, 'Expected a detection for UserProfile in TypeScript file');
     assert.equal(hit!.details?.propCount, 10);
@@ -108,8 +96,8 @@ describe('prop-explosion-sniffer — true negatives', () => {
     assert.equal(typeHit, undefined, 'Type alias should not be flagged');
   });
 
-  it('11. Does NOT flag component at exactly threshold (threshold=10 for 10-prop component)', () => {
-    const results = detect('many-props.jsx', { threshold: 10 });
+  it('11. Does NOT flag component at exactly threshold (threshold=12 for 12-prop component)', () => {
+    const results = detect('many-props.jsx', { threshold: 12 });
     const hit = results.find((d) => d.details?.componentName === 'UserProfile');
     assert.equal(hit, undefined, 'Component at exactly the threshold should not be flagged');
   });
@@ -131,13 +119,13 @@ describe('prop-explosion-sniffer — configuration', () => {
     assert.equal(results.length, 0, 'Expected no detections with threshold 15');
   });
 
-  it('14. Uses default threshold of 7 when no config provided', () => {
-    // many-props.jsx has 10 props — should be flagged at default threshold 7
+  it('14. Uses default threshold of 10 when no config provided', () => {
+    // many-props.jsx has 12 props — should be flagged at default threshold 10
     const results = detect('many-props.jsx');
     assert.ok(results.length > 0, 'Expected detections at default threshold');
     const hit = results.find((d) => d.details?.componentName === 'UserProfile');
     assert.ok(hit, 'Expected UserProfile to be detected at default threshold');
-    assert.equal(hit!.details?.threshold, 7, 'Threshold in details should be 7');
+    assert.equal(hit!.details?.threshold, 10, 'Threshold in details should be 10');
   });
 });
 
@@ -164,7 +152,7 @@ describe('prop-explosion-sniffer — edge cases', () => {
   });
 
   it('18. Multiple components in one file — returns multiple detections', () => {
-    const results = detect('edge-cases.jsx');
+    const results = detect('edge-cases.jsx', { threshold: 7 });
     const componentNames = results.map((d) => d.details?.componentName);
     const unique = new Set(componentNames);
     assert.ok(unique.size >= 2, `Expected at least 2 distinct component detections, got ${unique.size}`);
@@ -208,5 +196,27 @@ describe('prop-explosion-sniffer — output shape', () => {
       hit!.suggestion.includes('UserProfile'),
       'Suggestion should contain the component name',
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// False positive regression tests
+// ---------------------------------------------------------------------------
+describe('prop-explosion-sniffer — false positive regressions', () => {
+  it('23. Does NOT flag table component with 9 props (under default threshold of 10)', () => {
+    const results = detect('table-component.jsx');
+    assert.equal(results.length, 0, '9 props should not trigger at threshold 10');
+  });
+
+  it('24. Flags god component with 13 props at default threshold', () => {
+    const results = detect('god-component.jsx');
+    const hit = results.find((d) => d.details?.componentName === 'GodComponent');
+    assert.ok(hit, 'Expected detection for GodComponent with 13 props');
+    assert.equal(hit!.details?.propCount, 13);
+  });
+
+  it('25. JSX attribute usage of library components is NOT flagged', () => {
+    const results = detect('jsx-attributes.jsx');
+    assert.equal(results.length, 0, 'JSX attribute usage should not be detected');
   });
 });

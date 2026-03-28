@@ -74,6 +74,123 @@ describe('callback-hell-sniffer — true negatives', () => {
     const detections = sniffer.detect(content, 'test.js', {});
     assert.deepEqual(detections, []);
   });
+
+  it('does NOT flag react-hooks-false-positives.js fixture', () => {
+    const content = loadFixture('react-hooks-false-positives.js');
+    const detections = sniffer.detect(content, 'react-hooks-false-positives.js', {});
+    assert.equal(detections.length, 0, 'React hook patterns should not be flagged as callback hell');
+  });
+
+  it('does NOT flag useEffect with async init and try/catch', () => {
+    const content = [
+      'useEffect(() => {',
+      '  async function init() {',
+      '    try {',
+      '      const data = await fetch("/api");',
+      '      process(data);',
+      '    } catch (e) {',
+      '      console.error(e);',
+      '    }',
+      '  }',
+      '  init();',
+      '}, []);',
+    ].join('\n');
+    const detections = sniffer.detect(content, 'test.js', {});
+    assert.equal(detections.length, 0, 'useEffect + async + try/catch should not be flagged');
+  });
+
+  it('does NOT flag setState with forEach', () => {
+    const content = [
+      'setItems((prev) => {',
+      '  const updated = [...prev];',
+      '  ids.forEach((id) => {',
+      '    if (!updated.includes(id)) {',
+      '      updated.push(id);',
+      '    }',
+      '  });',
+      '  return updated;',
+      '});',
+    ].join('\n');
+    const detections = sniffer.detect(content, 'test.js', {});
+    assert.equal(detections.length, 0, 'State updater + forEach should not be flagged');
+  });
+
+  it('does NOT flag useCallback with array method', () => {
+    const content = [
+      'const handler = useCallback((items) => {',
+      '  const found = items.some((item) => {',
+      '    return list.find((l) => {',
+      '      return l.id === item.id;',
+      '    });',
+      '  });',
+      '  return found;',
+      '}, [list]);',
+    ].join('\n');
+    const detections = sniffer.detect(content, 'test.js', {});
+    assert.equal(detections.length, 0, 'useCallback + array methods should not be flagged');
+  });
+
+  it('does NOT flag useEffect cleanup pattern', () => {
+    const content = [
+      'useEffect(() => {',
+      '  const timer = setInterval(tick, 1000);',
+      '  return () => {',
+      '    clearInterval(timer);',
+      '  };',
+      '}, [tick]);',
+    ].join('\n');
+    const detections = sniffer.detect(content, 'test.js', {});
+    assert.equal(detections.length, 0, 'useEffect cleanup should not be flagged');
+  });
+
+  it('does NOT flag IIFE inside useEffect', () => {
+    const content = [
+      'useEffect(() => {',
+      '  (function(w, d) {',
+      '    function init() {',
+      '      const s = d.createElement("script");',
+      '      s.async = true;',
+      '      d.head.appendChild(s);',
+      '    }',
+      '    init();',
+      '  })(window, document);',
+      '}, []);',
+    ].join('\n');
+    const detections = sniffer.detect(content, 'test.js', {});
+    assert.equal(detections.length, 0, 'IIFE inside useEffect should not be flagged');
+  });
+
+  it('does NOT flag single .then() with data processing', () => {
+    const content = [
+      'spreadsheetRef.current.saveJSON().then((data) => {',
+      '  const sheet = data.sheets.find((s) => {',
+      '    return s.name === data.activeSheet;',
+      '  });',
+      '  Object.entries(response).forEach(([key, val]) => {',
+      '    process(key, val);',
+      '  });',
+      '});',
+    ].join('\n');
+    const detections = sniffer.detect(content, 'test.js', {});
+    assert.equal(detections.length, 0, 'Single .then() with array methods should not be flagged');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// True positives — new fixtures
+// ---------------------------------------------------------------------------
+describe('callback-hell-sniffer — true positives (new patterns)', () => {
+  it('detects deeply nested promise chains in promise-chain-nesting.js', () => {
+    const content = loadFixture('promise-chain-nesting.js');
+    const detections = sniffer.detect(content, 'promise-chain-nesting.js', {});
+    assert.ok(detections.length > 0, 'should detect nested .then() chains');
+  });
+
+  it('detects deeply nested event emitters in event-emitter-nesting.js', () => {
+    const content = loadFixture('event-emitter-nesting.js');
+    const detections = sniffer.detect(content, 'event-emitter-nesting.js', {});
+    assert.ok(detections.length > 0, 'should detect nested event handler callbacks');
+  });
 });
 
 // ---------------------------------------------------------------------------
