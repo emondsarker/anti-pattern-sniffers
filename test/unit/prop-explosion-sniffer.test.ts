@@ -162,6 +162,33 @@ describe('prop-explosion-sniffer — edge cases', () => {
 });
 
 // ---------------------------------------------------------------------------
+// V5: Tree node and SVG component exemptions
+// ---------------------------------------------------------------------------
+describe('prop-explosion-sniffer — structural pattern exemptions', () => {
+  it('does NOT flag tree node component with level prop (11 props, threshold 7)', () => {
+    const results = detect('tree-node.jsx');
+    assert.equal(results.length, 0, 'TreeNode with level prop gets +4 bonus threshold (effective 11)');
+  });
+
+  it('does NOT flag SVG component with x/y/width/height (10 props, threshold 7)', () => {
+    const results = detect('svg-component.jsx');
+    assert.equal(results.length, 0, 'GanttTaskBar with x/y/width/height gets +3 bonus threshold (effective 10)');
+  });
+
+  it('still flags tree node if props exceed bonus threshold', () => {
+    const content = [
+      'const HugeTreeNode = ({ item, level, isExpanded, onToggle, selectedSources,',
+      '  onAddSource, onRemoveSource, expandedFolders, searchTerm, disabledIds,',
+      '  canSelect, renderActions }) => {',
+      '  return <div>{item.name}</div>;',
+      '};',
+    ].join('\n');
+    const results = sniffer.detect(content, 'huge-tree.jsx', {});
+    assert.ok(results.length > 0, 'Tree node with 12 props should still be flagged (12 > 11)');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Output shape
 // ---------------------------------------------------------------------------
 describe('prop-explosion-sniffer — output shape', () => {

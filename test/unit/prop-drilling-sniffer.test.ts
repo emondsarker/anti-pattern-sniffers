@@ -199,6 +199,41 @@ describe('prop-drilling-sniffer — composition vs drilling', () => {
 });
 
 // ---------------------------------------------------------------------------
+// V5: Specialization wrapper, list container, render-slot injection
+// ---------------------------------------------------------------------------
+describe('prop-drilling-sniffer — specialization wrapper', () => {
+  it('does NOT flag specialization wrapper with 3+ default values', () => {
+    const results = detect('specialization-with-defaults.jsx');
+    assert.equal(results.length, 0, 'DeleteConfirmation provides defaults — not drilling');
+  });
+
+  it('still flags pure pass-through without defaults', () => {
+    const results = detect('deep-drilling.jsx');
+    const wrapperHits = results.filter(
+      (d) => d.details?.componentName === 'Wrapper',
+    );
+    assert.ok(wrapperHits.length >= 5, 'Wrapper has no defaults — is drilling');
+  });
+});
+
+describe('prop-drilling-sniffer — list container', () => {
+  it('does NOT flag list container that maps over data', () => {
+    const results = detect('list-container.jsx');
+    assert.equal(results.length, 0, 'TreeView maps over folders — not drilling');
+  });
+});
+
+describe('prop-drilling-sniffer — render-slot injection', () => {
+  it('does NOT flag props injected into render callbacks', () => {
+    const results = detect('render-slot-injection.jsx', { minPassThroughProps: 3 });
+    const hits = results.filter(
+      (d) => d.details?.componentName === 'CustomReactMarkdown',
+    );
+    assert.equal(hits.length, 0, 'Props passed into components={{ a: ... }} are render slots');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
 describe('prop-drilling-sniffer — configuration', () => {

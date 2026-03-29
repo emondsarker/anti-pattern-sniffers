@@ -133,8 +133,12 @@ const sniffer: SnifferExport = {
       if (caseValues.has(stringValue)) continue;
 
       // Skip comparisons against method call return values: .getIsSorted() === 'asc'
-      const before = withoutComments.substring(Math.max(0, match.index - 30), match.index);
+      const before = withoutComments.substring(Math.max(0, match.index - 50), match.index);
       if (/\)\s*$/.test(before)) continue;
+
+      // Skip typeof checks — 'string', 'number', 'boolean', etc. are language primitives
+      // The === is part of the match, so `before` ends just before it
+      if (/typeof\s+[\w.]+\s*$/.test(before)) continue;
 
       if (!occurrences.has(stringValue)) {
         occurrences.set(stringValue, []);

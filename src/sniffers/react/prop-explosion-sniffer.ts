@@ -59,7 +59,21 @@ function detectDestructuredProps(
       : allPropNames;
     const propCount = propNames.length;
 
-    if (propCount > threshold) {
+    // Apply bonus threshold for recognized structural patterns:
+    // Tree/recursive nodes need level/depth + data + expand + selection + handlers
+    // SVG/Canvas components need x/y/width/height positioning props
+    const propNameSet = new Set(propNames);
+    let effectiveThreshold = threshold;
+    if (propNameSet.has('level') || propNameSet.has('depth')) {
+      effectiveThreshold = Math.max(threshold, threshold + 4);
+    } else if (
+      propNameSet.has('x') && propNameSet.has('y') &&
+      propNameSet.has('width') && propNameSet.has('height')
+    ) {
+      effectiveThreshold = Math.max(threshold, threshold + 3);
+    }
+
+    if (propCount > effectiveThreshold) {
       // Use the position in the original source for accurate line/column
       const line = getLineNumber(originalSource, match.index);
       const column = getColumnNumber(originalSource, match.index);
@@ -69,14 +83,14 @@ function detectDestructuredProps(
         filePath,
         line,
         column,
-        message: `Component "${componentName}" has ${propCount} props (threshold: ${threshold})`,
+        message: `Component "${componentName}" has ${propCount} props (threshold: ${effectiveThreshold})`,
         severity,
         suggestion: buildSuggestion(componentName),
         details: {
           componentName,
           propCount,
           propNames,
-          threshold,
+          threshold: effectiveThreshold,
         },
       });
     }

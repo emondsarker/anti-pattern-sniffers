@@ -220,6 +220,22 @@ describe('magic-strings-sniffer — V4 false positive fixes', () => {
     assert.equal(detections.length, 0, 'Parameter union type values should be exempt');
   });
 
+  it('does NOT flag typeof comparisons — language primitives', () => {
+    const content = [
+      `if (typeof answer.value === 'string' || typeof answer.value === 'boolean') {`,
+      `  initial.set(answer.inputId, answer.value);`,
+      `}`,
+      `if (typeof answer.value === 'string' || typeof answer.value === 'boolean') {`,
+      `  saved.set(answer.inputId, answer.value);`,
+      `}`,
+      `if (typeof answer.value === 'string' || typeof answer.value === 'boolean') {`,
+      `  final.set(answer.inputId, answer.value);`,
+      `}`,
+    ].join('\n');
+    const detections = sniffer.detect(content, 'component.tsx', {});
+    assert.equal(detections.length, 0, 'typeof checks are language primitives, not magic strings');
+  });
+
   it('still flags cross-file strings not declared as union types', () => {
     const content = [
       `if (mode === 'edit') { enableEditing(); }`,
